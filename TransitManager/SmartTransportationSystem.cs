@@ -62,7 +62,7 @@ namespace SmartTransportation
         public override int GetUpdateInterval(SystemUpdatePhase phase)
         {
             // One day (or month) in-game is '262144' ticks
-            return 262144 / 32;
+            return 262144 /(int) Mod.m_Setting.updateFreq;
         }
 
         protected override void OnGameLoaded(Context serializationContext)
@@ -163,7 +163,11 @@ namespace SmartTransportation
             RequireForUpdate(_query);
 
             var transports = _query.ToEntityArray(Allocator.Temp);
-            Mod.log.Info($"Updating:{transports.Length}");
+            if(Mod.m_Setting.debug)
+            {
+                Mod.log.Info($"Updating {transports.Length} transit routes");
+            }
+            
             foreach (var trans in transports)
             {
 
@@ -276,7 +280,7 @@ namespace SmartTransportation
                         float stableDuration = CalculateStableDuration(transportLineData, waypoints, routeSegments);
 
                         //Half weight for waiting passengers, the assumption is that when they board, a similar amount will deboard
-                        float capacity = (passengers + waiting/2f) / ((float)passenger_capacity);
+                        float capacity = (passengers + waiting*Mod.m_Setting.waiting_time_weight) / ((float)passenger_capacity);
                         
                         int ticketPrice = transportLine.m_TicketPrice;
                         int currentVehicles = vehicles.Length;
@@ -321,9 +325,9 @@ namespace SmartTransportation
 
                         //Calculating ticket change. If capacity is within +- 10% points of target occupancy no change
                         // If price was reduced or increased from standard ticket but is within +- 20% points from target occupancy also no change
-                        if (capacity < (occupancy - 10)/100f)
+                        if (capacity < (occupancy - Mod.m_Setting.threshold)/100f)
                         {
-                            if (ticketPrice < standard_ticket && capacity < (occupancy - 20) / 100f)
+                            if (ticketPrice < standard_ticket && capacity < (occupancy - 2*Mod.m_Setting.threshold) / 100f)
                             {
                                 if (ticketPrice > Math.Round((100 - max_discount) * standard_ticket / 100f))
                                 {
@@ -336,9 +340,9 @@ namespace SmartTransportation
                             }
                             setVehicles--;
                         }
-                        else if (capacity > (occupancy + 10)/100f)
+                        else if (capacity > (occupancy + Mod.m_Setting.threshold) /100f)
                         {
-                            if (ticketPrice > standard_ticket && capacity > (occupancy + 20)/100f)
+                            if (ticketPrice > standard_ticket && capacity > (occupancy + 2* Mod.m_Setting.threshold) /100f)
                             {
                                 if (ticketPrice < Math.Round((100 + max_increase) * standard_ticket / 100f))
                                 {
@@ -366,7 +370,10 @@ namespace SmartTransportation
                         m_PoliciesUISystem.SetPolicy(trans, m_TicketPricePolicy, num1 != 0, (float)ticketPrice);
                         m_PoliciesUISystem.SetPolicy(trans, m_VehicleCountPolicy, true, CalculateAdjustmentFromVehicleCount(setVehicles, transportLineData.m_DefaultVehicleInterval, stableDuration, buffer, policySliderData));
 
-                        //Mod.log.Info($"Route:{routeNumber.m_Number},transtype:{transportLineData.m_TransportType},ticket:{transportLine.m_TicketPrice},vehicles:{setVehicles},max:{maxVehicles},min:{minVehicles},frequency:{transportLine.m_VehicleInterval},veh_capacity:{passenger_capacity},capacity:{capacity}");
+                        if (Mod.m_Setting.debug)
+                        {
+                            Mod.log.Info($"Route:{routeNumber.m_Number}, Type:{transportLineData.m_TransportType}, Ticket Price:{transportLine.m_TicketPrice}, Number of Vehicles:{setVehicles}, Max Vehicles:{maxVehicles}, Min Vehicles:{minVehicles}, Occupancy:{capacity}, Target Occupancy:{occupancy/100f}");
+                        }
                     }
                 }
             }

@@ -1,10 +1,10 @@
 ﻿<Publish>
 	<!--Id must be set in order to update existed mod. it is not required for publishing mod for the first time-->
-	<ModId Value="" />
+	<ModId Value="90264" />
 	<!--Name of the mod to display to players-->
 	<DisplayName Value="SmartTransportation" />
 	<!--Short description of the mod-->
-	<ShortDescription Value="This is a short description" />
+	<ShortDescription Value="This mod automates ticket prices and number of vehicles in transit routes" />
 	<!--Long description of the mod. Single line or multi line. Supports minimal markdown subset-->
 	<!--LongDescription Value="This is a long description" /-->
 	<LongDescription>
@@ -15,29 +15,31 @@ This mod automates ticket prices and number of vehicles in transit routes. This 
 It is possible to configure how the mod will adjust transit routes for each mode (Bus, Tram, Subway and Train). The settings that can be changed include:
 
 * **Ticket Price:** The user can configure the maximum fare increase and decrease for each transit mode. Fares will increase when vehicles are full to increase revenue and discourage more ridership, and they will decrease when vehicles are empty to encourage more riders.
-* **Target Occupancy:** The mod will change number of vehicles and adjust fares to try to reach the target occupancy. However, because there are limit on the number of vehicles per route and also on the fare increase and decrease, the target occupancy might not be met in some cases. Also, a high target occupancy might decrease the frequency of transit vehicles, which consequently might discourage transit ridership. So choose wisely.
+* **Target Occupancy:** The mod will change number of vehicles and adjust fares to try to reach the target occupancy. However, because there is a limit on the number of vehicles per route and also on the fare increase and decrease, the target occupancy might not be met in some cases. Also, a high target occupancy might decrease the frequency of transit vehicles, which consequently might discourage transit ridership. So choose wisely.
 * **Disable:** It is also possible to disable adjustments for each mode. In this case, the vehicle count and ticket price will remain with the previous values.
 	</LongDescription>
 	<!--Thumbnail-->
 	<Thumbnail Value="Properties/Thumbnail.png" />
 	<!--Screenshot, can be set multiple times-->
-	<Screenshot Value="" />
+	<Screenshot Value="Properties/screenshot.png" />
 	<!--Tag, can be set multiple times-->
 	<Tag Value="" />
 	<!--Link to the forum post where the mod can be discussed-->
 	<ForumLink Value="https://forum.paradoxplaza.com/forum/threads/smart-transportation-mod.1704128/" />
 	<!--Version of the mod-->
-	<ModVersion Value="0.1" />
+	<ModVersion Value="0.2" />
 	<!--Recommended version of the base game to use the mod-->
 	<GameVersion Value="1.1.*" />
 	<!--Dependency for the mod, can be set multiple times-->
 	<Dependency Id="" />
-	<!--Change log for new version. Single line or multi line. Supports minimal markdown subset-->
-	<ChangeLog Value="" />
-	<!--ChangeLog>
-	</ChangeLog-->
+	<ChangeLog>
+* Increased limits for standard tickets and ticket increase percentage
+* Added debug log option to print information on each route
+* Added option to configure waiting time weight
+* Added option to update frequency that the mod evaluates each transit route
+	</ChangeLog>
 	<!--External link. supported types are discord, github, youtube, twitch, x, paypal, patreon-->
-	<ExternalLink Type="github" Url="https://github.com/ruzbeh0/RealLife" />
+	<ExternalLink Type="github" Url="https://github.com/ruzbeh0/SmartTransportation" />
 	<ExternalLink Type="discord" Url="https://discord.com/channels/1024242828114673724/1285954236647211130" />
 	<ExternalLink Type="paypal" Url="https://www.paypal.com/paypalme/ruzbeh0" />
 	<ExternalLink Type="kofi" Url="https://ko-fi.com/ruzbeh0" />
