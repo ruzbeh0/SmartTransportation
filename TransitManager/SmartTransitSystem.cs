@@ -28,7 +28,7 @@ using Unity.Mathematics;
 
 namespace SmartTransportation
 {
-    public partial class SmartTransportationSystem : GameSystemBase
+    public partial class SmartTransitSystem : GameSystemBase
     {
         private Dictionary<Entity, TransportLine> _transportToData = new Dictionary<Entity, TransportLine>();
 
@@ -363,6 +363,11 @@ namespace SmartTransportation
                         if (setVehicles < minVehicles)
                         {
                             setVehicles = minVehicles;
+                        }
+
+                        if (standard_ticket == 0)
+                        {
+                            ticketPrice = 0;
                         }
 
                         int num1 = ticketPrice > 0 ? 1 : 0;

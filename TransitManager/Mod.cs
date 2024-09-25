@@ -38,7 +38,9 @@ namespace SmartTransportation
 
             AssetDatabase.global.LoadSettings(nameof(SmartTransportation), m_Setting, new Setting(this));
 
-            updateSystem.UpdateAt<SmartTransportationSystem>(SystemUpdatePhase.GameSimulation);
+            updateSystem.UpdateAt<SmartTransitSystem>(SystemUpdatePhase.GameSimulation);
+            //updateSystem.UpdateAt<SmartTaxiSystem>(SystemUpdatePhase.GameSimulation);
+            //updateSystem.UpdateAt<PolicySliderDataUpdaterSystem>(SystemUpdatePhase.GameSimulation);
 
         }
 

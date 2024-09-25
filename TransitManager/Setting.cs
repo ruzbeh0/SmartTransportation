@@ -10,16 +10,18 @@ using Unity.Entities;
 namespace SmartTransportation
 {
     [FileLocation(nameof(SmartTransportation))]
-    [SettingsUIGroupOrder(BusGroup, TramGroup, SubwayGroup, TrainGroup, SettingsGroup)]
-    [SettingsUIShowGroupName(BusGroup, TramGroup, SubwayGroup, TrainGroup, SettingsGroup)]
+    [SettingsUIGroupOrder(BusGroup, TramGroup, SubwayGroup, TrainGroup, TaxiGroup, SettingsGroup)]
+    [SettingsUIShowGroupName(BusGroup, TramGroup, SubwayGroup, TrainGroup, TaxiGroup, SettingsGroup)]
     public class Setting : ModSetting
     {
         public const string TransitSection = "TransitSection";
+        public const string TaxiSection = "TaxiSection";
         public const string SettingsSection = "SettingsSection";
         public const string BusGroup = "BusGroup";
         public const string TramGroup = "TramGroup";
         public const string SubwayGroup = "SubwayGroup";
         public const string TrainGroup = "TrainGroup";
+        public const string TaxiGroup = "TaxiGroup";
         public const string SettingsGroup = "SettingsGroup";
 
         public Setting(IMod mod) : base(mod)
@@ -37,19 +39,27 @@ namespace SmartTransportation
             target_occupancy_Tram = 60;
             max_ticket_increase_Tram = 30;
             max_ticket_discount_Tram = 20;
+            disable_Subway = false;
             target_occupancy_Subway = 60;
             max_ticket_increase_Subway = 40;
             max_ticket_discount_Subway = 20;
+            disable_Train = false;
             target_occupancy_Train = 70;
             max_ticket_increase_Train = 40;
             max_ticket_discount_Train = 20;
             standard_ticket_bus = 8;
+            disable_Taxi = false;
+            target_occupancy_Taxi = 70;
+            max_ticket_increase_Taxi = 100;
+            max_ticket_discount_Taxi = 20;
+            standard_ticket_Taxi = 20;
             standard_ticket_Tram = 8;
             standard_ticket_Subway = 9;
             standard_ticket_Train = 10;
             waiting_time_weight = 0.5f;
             threshold = 10;
             debug = false;
+            updateFreq = UpdateFreqEnum.min45;
         }
 
         [SettingsUISection(TransitSection, BusGroup)]
@@ -144,6 +154,29 @@ namespace SmartTransportation
         [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Train))]
         public int max_ticket_discount_Train { get; set; }
 
+        [SettingsUISection(TransitSection, TaxiGroup)]
+        public bool disable_Taxi { get; set; }
+
+        [SettingsUISlider(min = 10, max = 90, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISection(TaxiSection, TaxiGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Taxi))]
+        public int target_occupancy_Taxi { get; set; }
+
+        [SettingsUISlider(min = 0, max = 50, step = 1, scalarMultiplier = 1, unit = Unit.kInteger)]
+        [SettingsUISection(TaxiSection, TaxiGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Taxi))]
+        public int standard_ticket_Taxi { get; set; }
+
+        [SettingsUISlider(min = 0, max = 300, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISection(TaxiSection, TaxiGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Taxi))]
+        public int max_ticket_increase_Taxi { get; set; }
+
+        [SettingsUISlider(min = 0, max = 100, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISection(TaxiSection, TaxiGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Taxi))]
+        public int max_ticket_discount_Taxi { get; set; }
+
         [SettingsUISlider(min = 0, max = 2, step = 0.1f, scalarMultiplier = 1, unit = Unit.kFloatSingleFraction)]
         [SettingsUISection(SettingsSection, SettingsGroup)]
         public float waiting_time_weight { get; set; }
@@ -153,7 +186,7 @@ namespace SmartTransportation
         public float threshold { get; set; }
 
         [SettingsUISection(SettingsSection, SettingsGroup)]
-        public UpdateFreqEnum updateFreq { get; set; } = UpdateFreqEnum.min45;
+        public UpdateFreqEnum updateFreq { get; set; }
 
         [SettingsUISection(SettingsSection, SettingsGroup)]
         public bool debug { get; set; }
@@ -163,6 +196,17 @@ namespace SmartTransportation
             min45 = 32,
             min22 = 64,
             min90 = 16
+        }
+
+        [SettingsUIButton]
+        [SettingsUISection(SettingsSection, SettingsGroup)]
+        public bool Button
+        {
+            set
+            {
+                SetDefaults();
+            }
+
         }
 
 
@@ -181,11 +225,13 @@ namespace SmartTransportation
             {
                 { m_Setting.GetSettingsLocaleID(), "Smart Transportation" },
                 { m_Setting.GetOptionTabLocaleID(Setting.TransitSection), "Transit" },
+                { m_Setting.GetOptionTabLocaleID(Setting.TaxiSection), "Taxi" },
                 { m_Setting.GetOptionTabLocaleID(Setting.SettingsSection), "Settings" },
                 { m_Setting.GetOptionGroupLocaleID(Setting.BusGroup), "Bus Settings" },
                 { m_Setting.GetOptionGroupLocaleID(Setting.TramGroup), "Tram Settings" },
                 { m_Setting.GetOptionGroupLocaleID(Setting.SubwayGroup), "Subway Settings" },
                 { m_Setting.GetOptionGroupLocaleID(Setting.TrainGroup), "Train Settings" },
+                { m_Setting.GetOptionGroupLocaleID(Setting.TaxiGroup), "Taxi Settings" },
                 { m_Setting.GetOptionGroupLocaleID(Setting.SettingsGroup), "Settings Settings" },
 
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.debug)), "Write Transit Information to Log" },
@@ -245,9 +291,26 @@ namespace SmartTransportation
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.max_ticket_increase_Train)), "Maximum ticket increase. Ticket prices will increase at peak hours to generate more revenue and discourage cims to use transit at rush hours." },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.max_ticket_discount_Train)), "Maximum ticket decrease. Ticket prices will decrease at off-peak hours to attract more passengers." },
 
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.disable_Taxi)), "Disable Taxi Dynamic Pricing" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.target_occupancy_Taxi)), "Target Usage" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.standard_ticket_Taxi)), "Standard Minimum Taxi Fee" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_increase_Taxi)), "Max. Fee Increase" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_discount_Taxi)), "Max. Fee Discount" },
+
+                { m_Setting.GetOptionDescLocaleID(nameof(Setting.disable_Taxi)), "Disable Taxi daynamic pricing and use standard minimum taxi fee. " },
+                { m_Setting.GetOptionDescLocaleID(nameof(Setting.target_occupancy_Taxi)), "Target usage for Taxis. The mod will change ticket prices try to reach this usage target." },
+                { m_Setting.GetOptionDescLocaleID(nameof(Setting.standard_ticket_Taxi)), "Standard minimum fee. Vanilla value is 10." },
+                { m_Setting.GetOptionDescLocaleID(nameof(Setting.max_ticket_increase_Taxi)), "Maximum fee increase. Taxi fee will increase at peak hours to generate more revenue and discourage cims to use taxi at rush hours." },
+                { m_Setting.GetOptionDescLocaleID(nameof(Setting.max_ticket_discount_Taxi)), "Maximum fee decrease. Taxi fee will decrease at off-peak hours to attract more passengers." },
+
+
                 { m_Setting.GetEnumValueLocaleID(Setting.UpdateFreqEnum.min22), "22" },
                 { m_Setting.GetEnumValueLocaleID(Setting.UpdateFreqEnum.min45), "45" },
                 { m_Setting.GetEnumValueLocaleID(Setting.UpdateFreqEnum.min90), "90" },
+
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.Button)), "Reset Settings" },
+                { m_Setting.GetOptionDescLocaleID(nameof(Setting.Button)), $"Reset settings to default values" },
+
 
             };
         }
