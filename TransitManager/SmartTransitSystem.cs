@@ -102,17 +102,20 @@ namespace SmartTransportation
             return stableDuration;
         }
 
-        private int CalculateVehicleCountFromAdjustment(
+        public static int CalculateVehicleCountFromAdjustment(
         float policyAdjustment,
         float interval,
-        float duration)
+        float duration,
+        BufferLookup<RouteModifierData> routeModifierDatas,
+        Entity vehicleCountPolicy,
+        ComponentLookup<PolicySliderData> policySliderDatas)
         {
             RouteModifier modifier = new RouteModifier();
-            foreach (RouteModifierData modifierData in this.m_RouteModifierDatas[m_VehicleCountPolicy])
+            foreach (RouteModifierData modifierData in routeModifierDatas[vehicleCountPolicy])
             {
                 if (modifierData.m_Type == RouteModifierType.VehicleInterval)
                 {
-                    float modifierDelta = RouteModifierInitializeSystem.RouteModifierRefreshData.GetModifierDelta(modifierData, policyAdjustment, m_VehicleCountPolicy, this.m_PolicySliderDatas);
+                    float modifierDelta = RouteModifierInitializeSystem.RouteModifierRefreshData.GetModifierDelta(modifierData, policyAdjustment, vehicleCountPolicy, policySliderDatas);
                     RouteModifierInitializeSystem.RouteModifierRefreshData.AddModifierData(ref modifier, modifierData, modifierDelta);
                     break;
                 }
@@ -280,14 +283,16 @@ namespace SmartTransportation
                         float stableDuration = CalculateStableDuration(transportLineData, waypoints, routeSegments);
 
                         //Half weight for waiting passengers, the assumption is that when they board, a similar amount will deboard
-                        float capacity = (passengers + waiting*Mod.m_Setting.waiting_time_weight) / ((float)passenger_capacity);
+                        float capacity = (passengers + waiting*Mod.m_Setting.waiting_time_weight) / ((float)passenger_capacity* vehicles.Length);
                         
                         int ticketPrice = transportLine.m_TicketPrice;
+                        int oldTicketPrice = ticketPrice;
                         int currentVehicles = vehicles.Length;
                         PolicySliderData policySliderData = EntityManager.GetComponentData<PolicySliderData>(m_VehicleCountPolicy);
-                        int maxVehicles = CalculateVehicleCountFromAdjustment(policySliderData.m_Range.max, defaultVehicleInterval, stableDuration); ;
-                        int minVehicles = CalculateVehicleCountFromAdjustment(policySliderData.m_Range.min, defaultVehicleInterval, stableDuration); ;
+                        int maxVehicles = CalculateVehicleCountFromAdjustment(policySliderData.m_Range.max, defaultVehicleInterval, stableDuration, this.m_RouteModifierDatas, this.m_VehicleCountPolicy, this.m_PolicySliderDatas); ;
+                        int minVehicles = CalculateVehicleCountFromAdjustment(policySliderData.m_Range.min, defaultVehicleInterval, stableDuration, this.m_RouteModifierDatas, this.m_VehicleCountPolicy, this.m_PolicySliderDatas); ;
                         int setVehicles = TransportLineSystem.CalculateVehicleCount(vehicleInterval, stableDuration); ;
+                        int oldVehicles = setVehicles;
                         int occupancy = 0;
                         int max_discount = 0;
                         int max_increase = 0;
@@ -299,46 +304,64 @@ namespace SmartTransportation
                                 occupancy = Mod.m_Setting.target_occupancy_bus;
                                 max_discount = Mod.m_Setting.max_ticket_discount_bus;
                                 max_increase = Mod.m_Setting.max_ticket_increase_bus;
+                                maxVehicles *= (int)Math.Round(1 + Mod.m_Setting.max_vahicles_adj_bus / 100f);
+                                minVehicles *= (int)Math.Round(1 - Mod.m_Setting.min_vahicles_adj_bus / 100f);
                                 standard_ticket = Mod.m_Setting.standard_ticket_bus;
                                 break;
                             case TransportType.Tram:
                                 occupancy = Mod.m_Setting.target_occupancy_Tram;
                                 max_discount = Mod.m_Setting.max_ticket_discount_Tram;
                                 max_increase = Mod.m_Setting.max_ticket_increase_Tram;
+                                maxVehicles *= (int)Math.Round(1 + Mod.m_Setting.max_vahicles_adj_Tram / 100f);
+                                minVehicles *= (int)Math.Round(1 - Mod.m_Setting.min_vahicles_adj_Tram / 100f);
                                 standard_ticket = Mod.m_Setting.standard_ticket_Tram;
                                 break;
                             case TransportType.Subway:
                                 occupancy = Mod.m_Setting.target_occupancy_Subway;
                                 max_discount = Mod.m_Setting.max_ticket_discount_Subway;
                                 max_increase = Mod.m_Setting.max_ticket_increase_Subway;
+                                maxVehicles *= (int)Math.Round(1 + Mod.m_Setting.max_vahicles_adj_Subway / 100f);
+                                minVehicles *= (int)Math.Round(1 - Mod.m_Setting.min_vahicles_adj_Subway / 100f);
                                 standard_ticket = Mod.m_Setting.standard_ticket_Subway;
                                 break;
                             case TransportType.Train:
                                 occupancy = Mod.m_Setting.target_occupancy_Train;
                                 max_discount = Mod.m_Setting.max_ticket_discount_Train;
                                 max_increase = Mod.m_Setting.max_ticket_increase_Train;
+                                maxVehicles *= (int)Math.Round(1 + Mod.m_Setting.max_vahicles_adj_Train / 100f);
+                                minVehicles *= (int)Math.Round(1 - Mod.m_Setting.min_vahicles_adj_Train / 100f);
                                 standard_ticket = Mod.m_Setting.standard_ticket_Train;
                                 break;
                             default:
                                 continue;
                         }
 
+                        if (minVehicles < 1)
+                        {
+                            minVehicles = 1;
+                        }
+
                         //Calculating ticket change. If capacity is within +- 10% points of target occupancy no change
                         // If price was reduced or increased from standard ticket but is within +- 20% points from target occupancy also no change
                         if (capacity < (occupancy - Mod.m_Setting.threshold)/100f)
                         {
+                            setVehicles--;
                             if (ticketPrice < standard_ticket && capacity < (occupancy - 2*Mod.m_Setting.threshold) / 100f)
                             {
                                 if (ticketPrice > Math.Round((100 - max_discount) * standard_ticket / 100f))
                                 {
                                     ticketPrice--;
                                 }
+                                ////If occupancy is not too low, we don't need to have a very small number of vehicles
+                                //if (setVehicles == minVehicles)
+                                //{
+                                //    setVehicles++;
+                                //}
                             }
                             else if (ticketPrice == standard_ticket)
                             {
                                 ticketPrice--;
                             }
-                            setVehicles--;
                         }
                         else if (capacity > (occupancy + Mod.m_Setting.threshold) /100f)
                         {
@@ -375,9 +398,9 @@ namespace SmartTransportation
                         m_PoliciesUISystem.SetPolicy(trans, m_TicketPricePolicy, num1 != 0, (float)ticketPrice);
                         m_PoliciesUISystem.SetPolicy(trans, m_VehicleCountPolicy, true, CalculateAdjustmentFromVehicleCount(setVehicles, transportLineData.m_DefaultVehicleInterval, stableDuration, buffer, policySliderData));
 
-                        if (Mod.m_Setting.debug)
+                        if (Mod.m_Setting.debug && (oldVehicles != setVehicles || transportLine.m_TicketPrice != oldTicketPrice))
                         {
-                            Mod.log.Info($"Route:{routeNumber.m_Number}, Type:{transportLineData.m_TransportType}, Ticket Price:{transportLine.m_TicketPrice}, Number of Vehicles:{setVehicles}, Max Vehicles:{maxVehicles}, Min Vehicles:{minVehicles}, Occupancy:{capacity}, Target Occupancy:{occupancy/100f}");
+                            Mod.log.Info($"Route:{routeNumber.m_Number}, Type:{transportLineData.m_TransportType}, Ticket Price:{transportLine.m_TicketPrice}, Number of Vehicles:{setVehicles}, Max Vehicles:{maxVehicles}, Min Vehicles:{minVehicles}, Passengers:{passengers}, Waiting Passengers:{waiting}, Occupancy:{capacity}, Target Occupancy:{occupancy/100f}");
                         }
                     }
                 }

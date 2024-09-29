@@ -32,34 +32,42 @@ namespace SmartTransportation
         public override void SetDefaults()
         {
             disable_bus = false;
-            target_occupancy_bus = 40;
+            target_occupancy_bus = 30;
             max_ticket_increase_bus = 20;
             max_ticket_discount_bus = 40;
             disable_Tram = false;
-            target_occupancy_Tram = 60;
+            target_occupancy_Tram = 40;
             max_ticket_increase_Tram = 30;
             max_ticket_discount_Tram = 20;
             disable_Subway = false;
-            target_occupancy_Subway = 60;
+            target_occupancy_Subway = 50;
             max_ticket_increase_Subway = 40;
             max_ticket_discount_Subway = 20;
             disable_Train = false;
-            target_occupancy_Train = 70;
+            target_occupancy_Train = 60;
             max_ticket_increase_Train = 40;
             max_ticket_discount_Train = 20;
             standard_ticket_bus = 8;
-            disable_Taxi = false;
-            target_occupancy_Taxi = 70;
-            max_ticket_increase_Taxi = 100;
-            max_ticket_discount_Taxi = 20;
-            standard_ticket_Taxi = 20;
+            //disable_Taxi = false;
+            //target_occupancy_Taxi = 70;
+            //max_ticket_increase_Taxi = 100;
+            //max_ticket_discount_Taxi = 20;
+            //standard_ticket_Taxi = 20;
             standard_ticket_Tram = 8;
             standard_ticket_Subway = 9;
             standard_ticket_Train = 10;
-            waiting_time_weight = 0.5f;
+            waiting_time_weight = 1f;
             threshold = 10;
             debug = false;
             updateFreq = UpdateFreqEnum.min45;
+            max_vahicles_adj_bus = 0;
+            min_vahicles_adj_bus = 25;
+            max_vahicles_adj_Tram = 0;
+            min_vahicles_adj_Tram = 30;
+            max_vahicles_adj_Subway = 0;
+            min_vahicles_adj_Subway = -20;
+            max_vahicles_adj_Train = 0;
+            min_vahicles_adj_Train = 30;
         }
 
         [SettingsUISection(TransitSection, BusGroup)]
@@ -85,6 +93,16 @@ namespace SmartTransportation
         [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_bus))]
         public int max_ticket_discount_bus { get; set; }
 
+        [SettingsUISlider(min = 0, max = 100, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISection(TransitSection, BusGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_bus))]
+        public int max_vahicles_adj_bus { get; set; }
+
+        [SettingsUISlider(min = -50, max = 100, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISection(TransitSection, BusGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_bus))]
+        public int min_vahicles_adj_bus { get; set; }
+
         [SettingsUISection(TransitSection, TramGroup)]
         public bool disable_Tram { get; set; }
 
@@ -107,6 +125,16 @@ namespace SmartTransportation
         [SettingsUISection(TransitSection, TramGroup)]
         [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Tram))]
         public int max_ticket_discount_Tram { get; set; }
+
+        [SettingsUISlider(min = 0, max = 100, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISection(TransitSection, TramGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Tram))]
+        public int max_vahicles_adj_Tram { get; set; }
+
+        [SettingsUISlider(min = -50, max = 100, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISection(TransitSection, TramGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Tram))]
+        public int min_vahicles_adj_Tram { get; set; }
 
         [SettingsUISection(TransitSection, SubwayGroup)]
         public bool disable_Subway { get; set; }
@@ -131,6 +159,16 @@ namespace SmartTransportation
         [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Subway))]
         public int max_ticket_discount_Subway { get; set; }
 
+        [SettingsUISlider(min = 0, max = 100, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISection(TransitSection, SubwayGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Subway))]
+        public int max_vahicles_adj_Subway { get; set; }
+
+        [SettingsUISlider(min = -50, max = 100, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISection(TransitSection, SubwayGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Subway))]
+        public int min_vahicles_adj_Subway { get; set; }
+
         [SettingsUISection(TransitSection, TrainGroup)]
         public bool disable_Train { get; set; }
 
@@ -154,28 +192,38 @@ namespace SmartTransportation
         [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Train))]
         public int max_ticket_discount_Train { get; set; }
 
-        [SettingsUISection(TransitSection, TaxiGroup)]
-        public bool disable_Taxi { get; set; }
-
-        [SettingsUISlider(min = 10, max = 90, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
-        [SettingsUISection(TaxiSection, TaxiGroup)]
-        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Taxi))]
-        public int target_occupancy_Taxi { get; set; }
-
-        [SettingsUISlider(min = 0, max = 50, step = 1, scalarMultiplier = 1, unit = Unit.kInteger)]
-        [SettingsUISection(TaxiSection, TaxiGroup)]
-        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Taxi))]
-        public int standard_ticket_Taxi { get; set; }
-
-        [SettingsUISlider(min = 0, max = 300, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
-        [SettingsUISection(TaxiSection, TaxiGroup)]
-        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Taxi))]
-        public int max_ticket_increase_Taxi { get; set; }
-
         [SettingsUISlider(min = 0, max = 100, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
-        [SettingsUISection(TaxiSection, TaxiGroup)]
-        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Taxi))]
-        public int max_ticket_discount_Taxi { get; set; }
+        [SettingsUISection(TransitSection, TrainGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Train))]
+        public int max_vahicles_adj_Train { get; set; }
+
+        [SettingsUISlider(min = -50, max = 100, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISection(TransitSection, TrainGroup)]
+        [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Train))]
+        public int min_vahicles_adj_Train { get; set; }
+
+        //[SettingsUISection(TransitSection, TaxiGroup)]
+        //public bool disable_Taxi { get; set; }
+        //
+        //[SettingsUISlider(min = 10, max = 90, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        //[SettingsUISection(TaxiSection, TaxiGroup)]
+        //[SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Taxi))]
+        //public int target_occupancy_Taxi { get; set; }
+        //
+        //[SettingsUISlider(min = 0, max = 50, step = 1, scalarMultiplier = 1, unit = Unit.kInteger)]
+        //[SettingsUISection(TaxiSection, TaxiGroup)]
+        //[SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Taxi))]
+        //public int standard_ticket_Taxi { get; set; }
+        //
+        //[SettingsUISlider(min = 0, max = 300, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        //[SettingsUISection(TaxiSection, TaxiGroup)]
+        //[SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Taxi))]
+        //public int max_ticket_increase_Taxi { get; set; }
+
+        //[SettingsUISlider(min = 0, max = 100, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        //[SettingsUISection(TaxiSection, TaxiGroup)]
+        //[SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Taxi))]
+        //public int max_ticket_discount_Taxi { get; set; }
 
         [SettingsUISlider(min = 0, max = 2, step = 0.1f, scalarMultiplier = 1, unit = Unit.kFloatSingleFraction)]
         [SettingsUISection(SettingsSection, SettingsGroup)]
@@ -248,60 +296,75 @@ namespace SmartTransportation
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.standard_ticket_bus)), "Standard Ticket Price" },
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_increase_bus)), "Max. Ticket Increase" },
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_discount_bus)), "Max. Ticket Discount" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_vahicles_adj_bus)), "Max. Vehicle Increase" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.min_vahicles_adj_bus)), "Min. Vehicle Decrease" },
 
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.disable_bus)), "Disable bus daynamic pricing and frequency and use standard values for tickets and frequency. " },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.target_occupancy_bus)), "Target occupancy for buses. The mod will change ticket prices and vehicle frequency to try to reach this occupancy target." },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.standard_ticket_bus)), "Standard ticket price. Vanilla value is 8." },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.max_ticket_increase_bus)), "Maximum ticket increase. Ticket prices will increase at peak hours to generate more revenue and discourage cims to use transit at rush hours." },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.max_ticket_discount_bus)), "Maximum ticket decrease. Ticket prices will decrease at off-peak hours to attract more passengers." },
+                { m_Setting.GetOptionDescLocaleID(nameof(Setting.max_vahicles_adj_bus)), "Increase the maximum allowed number of vehicles by this percentage." },
+                { m_Setting.GetOptionDescLocaleID(nameof(Setting.min_vahicles_adj_bus)), "Decrease the minimum allowed number of vehicles by this percentage." },
 
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.disable_Tram)), "Disable Tram Dynamic Pricing & Frequency" },
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.target_occupancy_Tram)), "Target Occupancy" },
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.standard_ticket_Tram)), "Standard Ticket Price" },
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_increase_Tram)), "Max. Ticket Increase" },
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_discount_Tram)), "Max. Ticket Discount" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_vahicles_adj_Tram)), "Max. Vehicle Increase" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.min_vahicles_adj_Tram)), "Min. Vehicle Decrease" },
 
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.disable_Tram)), "Disable tram daynamic pricing and frequency and use standard values for tickets and frequency. " },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.target_occupancy_Tram)), "Target occupancy for Trams. The mod will change ticket prices and vehicle frequency to try to reach this occupancy target." },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.standard_ticket_Tram)), "Standard ticket price. Vanilla value is 8." },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.max_ticket_increase_Tram)), "Maximum ticket increase. Ticket prices will increase at peak hours to generate more revenue and discourage cims to use transit at rush hours." },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.max_ticket_discount_Tram)), "Maximum ticket decrease. Ticket prices will decrease at off-peak hours to attract more passengers." },
+                { m_Setting.GetOptionDescLocaleID(nameof(Setting.max_vahicles_adj_Tram)), "Increase the maximum allowed number of vehicles by this percentage." },
+                { m_Setting.GetOptionDescLocaleID(nameof(Setting.min_vahicles_adj_Tram)), "Decrease the minimum allowed number of vehicles by this percentage." },
 
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.disable_Subway)), "Disable Subway Dynamic Pricing & Frequency" },
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.target_occupancy_Subway)), "Target Occupancy" },
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.standard_ticket_Subway)), "Standard Ticket Price" },
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_increase_Subway)), "Max. Ticket Increase" },
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_discount_Subway)), "Max. Ticket Discount" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_vahicles_adj_Subway)), "Max. Vehicle Increase" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.min_vahicles_adj_Subway)), "Min. Vehicle Decrease" },
 
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.disable_Subway)), "Disable subway daynamic pricing and frequency and use standard values for tickets and frequency. " },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.target_occupancy_Subway)), "Target occupancy for Subways. The mod will change ticket prices and vehicle frequency to try to reach this occupancy target." },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.standard_ticket_Subway)), "Standard ticket price. Vanilla value is 8." },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.max_ticket_increase_Subway)), "Maximum ticket increase. Ticket prices will increase at peak hours to generate more revenue and discourage cims to use transit at rush hours." },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.max_ticket_discount_Subway)), "Maximum ticket decrease. Ticket prices will decrease at off-peak hours to attract more passengers." },
+                { m_Setting.GetOptionDescLocaleID(nameof(Setting.max_vahicles_adj_Subway)), "Increase the maximum allowed number of vehicles by this percentage." },
+                { m_Setting.GetOptionDescLocaleID(nameof(Setting.min_vahicles_adj_Subway)), "Decrease the minimum allowed number of vehicles by this percentage." },
 
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.disable_Train)), "Disable Train Dynamic Pricing & Frequency" },
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.target_occupancy_Train)), "Target Occupancy" },
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.standard_ticket_Train)), "Standard Ticket Price" },
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_increase_Train)), "Max. Ticket Increase" },
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_discount_Train)), "Max. Ticket Discount" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_vahicles_adj_Train)), "Max. Vehicle Increase" },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.min_vahicles_adj_Train)), "Min. Vehicle Decrease" },
 
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.disable_Train)), "Disable Train daynamic pricing and frequency and use standard values for tickets and frequency. " },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.target_occupancy_Train)), "Target occupancy for Trains. The mod will change ticket prices and vehicle frequency to try to reach this occupancy target." },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.standard_ticket_Train)), "Standard ticket price. Vanilla value is 8." },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.max_ticket_increase_Train)), "Maximum ticket increase. Ticket prices will increase at peak hours to generate more revenue and discourage cims to use transit at rush hours." },
-                { m_Setting.GetOptionDescLocaleID(nameof(Setting.max_ticket_discount_Train)), "Maximum ticket decrease. Ticket prices will decrease at off-peak hours to attract more passengers." },
+                { m_Setting.GetOptionDescLocaleID(nameof(Setting.max_vahicles_adj_Train)), "Increase the maximum allowed number of vehicles by this percentage." },
+                { m_Setting.GetOptionDescLocaleID(nameof(Setting.min_vahicles_adj_Train)), "Decrease the minimum allowed number of vehicles by this percentage." },
 
-                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.disable_Taxi)), "Disable Taxi Dynamic Pricing" },
-                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.target_occupancy_Taxi)), "Target Usage" },
-                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.standard_ticket_Taxi)), "Standard Minimum Taxi Fee" },
-                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_increase_Taxi)), "Max. Fee Increase" },
-                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_discount_Taxi)), "Max. Fee Discount" },
-
-                { m_Setting.GetOptionDescLocaleID(nameof(Setting.disable_Taxi)), "Disable Taxi daynamic pricing and use standard minimum taxi fee. " },
-                { m_Setting.GetOptionDescLocaleID(nameof(Setting.target_occupancy_Taxi)), "Target usage for Taxis. The mod will change ticket prices try to reach this usage target." },
-                { m_Setting.GetOptionDescLocaleID(nameof(Setting.standard_ticket_Taxi)), "Standard minimum fee. Vanilla value is 10." },
-                { m_Setting.GetOptionDescLocaleID(nameof(Setting.max_ticket_increase_Taxi)), "Maximum fee increase. Taxi fee will increase at peak hours to generate more revenue and discourage cims to use taxi at rush hours." },
-                { m_Setting.GetOptionDescLocaleID(nameof(Setting.max_ticket_discount_Taxi)), "Maximum fee decrease. Taxi fee will decrease at off-peak hours to attract more passengers." },
+                //{ m_Setting.GetOptionLabelLocaleID(nameof(Setting.disable_Taxi)), "Disable Taxi Dynamic Pricing" },
+                //{ m_Setting.GetOptionLabelLocaleID(nameof(Setting.target_occupancy_Taxi)), "Target Usage" },
+                //{ m_Setting.GetOptionLabelLocaleID(nameof(Setting.standard_ticket_Taxi)), "Standard Minimum Taxi Fee" },
+                //{ m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_increase_Taxi)), "Max. Fee Increase" },
+                //{ m_Setting.GetOptionLabelLocaleID(nameof(Setting.max_ticket_discount_Taxi)), "Max. Fee Discount" },
+                //
+                //{ m_Setting.GetOptionDescLocaleID(nameof(Setting.disable_Taxi)), "Disable Taxi daynamic pricing and use standard minimum taxi fee. " },
+                //{ m_Setting.GetOptionDescLocaleID(nameof(Setting.target_occupancy_Taxi)), "Target usage for Taxis. The mod will change ticket prices try to reach this usage target." },
+                //{ m_Setting.GetOptionDescLocaleID(nameof(Setting.standard_ticket_Taxi)), "Standard minimum fee. Vanilla value is 10." },
+                //{ m_Setting.GetOptionDescLocaleID(nameof(Setting.max_ticket_increase_Taxi)), "Maximum fee increase. Taxi fee will increase at peak hours to generate more revenue and discourage cims to use taxi at rush hours." },
+                //{ m_Setting.GetOptionDescLocaleID(nameof(Setting.max_ticket_discount_Taxi)), "Maximum fee decrease. Taxi fee will decrease at off-peak hours to attract more passengers." },
 
 
                 { m_Setting.GetEnumValueLocaleID(Setting.UpdateFreqEnum.min22), "22" },

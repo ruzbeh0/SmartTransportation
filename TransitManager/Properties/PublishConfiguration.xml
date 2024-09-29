@@ -17,6 +17,7 @@ It is possible to configure how the mod will adjust transit routes for each mode
 * **Ticket Price:** The user can configure the maximum fare increase and decrease for each transit mode. Fares will increase when vehicles are full to increase revenue and discourage more ridership, and they will decrease when vehicles are empty to encourage more riders.
 * **Target Occupancy:** The mod will change number of vehicles and adjust fares to try to reach the target occupancy. However, because there is a limit on the number of vehicles per route and also on the fare increase and decrease, the target occupancy might not be met in some cases. Also, a high target occupancy might decrease the frequency of transit vehicles, which consequently might discourage transit ridership. So choose wisely.
 * **Disable:** It is also possible to disable adjustments for each mode. In this case, the vehicle count and ticket price will remain with the previous values.
+* **Min/Max Vehicles:** The minimum and maximum number of vehicles is calculated in the base game based on the route lenght. This mod allows that minimum or maximum to be decreased or increased based on a certain percentage.
 
 ## Settings Section
 
@@ -26,6 +27,9 @@ The settings tab has some settings that affects all transit modes. These include
 * **Target Occupancy Threshold:** When the mod compares a route occupancy with the target occupancy, it will consider the threshold within the target when making a decision. Default value is 10% but can be changed if desired.
 * **Write Transit Information to Log:** This option will write information such as occupancy and number of vehicles for each route to the log every time the mod evaluates a route. This is useful for debugging and understanding why the mod is picking certain ticket price or number of vehicles for each route.
 
+## Credits and Mod Compatibility
+
+The min/max vehicle settings were based on the work developed by SonnyX on the Transport Policy Adjuster Mod. That mod also adjusts min/max vehicles but in a different way. This mod is not compatible with it.
 	</LongDescription>
 	<!--Thumbnail-->
 	<Thumbnail Value="Properties/Thumbnail.png" />
@@ -36,14 +40,15 @@ The settings tab has some settings that affects all transit modes. These include
 	<!--Link to the forum post where the mod can be discussed-->
 	<ForumLink Value="https://forum.paradoxplaza.com/forum/threads/smart-transportation-mod.1704128/" />
 	<!--Version of the mod-->
-	<ModVersion Value="0.2.1" />
+	<ModVersion Value="0.3.1s" />
 	<!--Recommended version of the base game to use the mod-->
 	<GameVersion Value="1.1.*" />
 	<!--Dependency for the mod, can be set multiple times-->
 	<Dependency Id="" />
 	<ChangeLog>
-* Fixed bug that didn't set ticket price to zero
-* Added reset button
+* Fixed occupancy calculation bug (Number of vehicles on each route was not being considered)
+* Adjusted default values for target occupancy for each mode
+* Minimum vehicles adjustment can now be negative
 	</ChangeLog>
 	<!--External link. supported types are discord, github, youtube, twitch, x, paypal, patreon-->
 	<ExternalLink Type="github" Url="https://github.com/ruzbeh0/SmartTransportation" />

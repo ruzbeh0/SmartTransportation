@@ -4,7 +4,9 @@ using Colossal.PSI.Environment;
 using Game;
 using Game.Modding;
 using Game.SceneFlow;
+using HarmonyLib;
 using System.IO;
+using System.Linq;
 using Unity.Entities;
 
 namespace SmartTransportation
@@ -13,7 +15,7 @@ namespace SmartTransportation
     {
         public static ILog log = LogManager.GetLogger($"{nameof(SmartTransportation)}.{nameof(Mod)}").SetShowsErrorsInUI(false);
 
-      public static Setting m_Setting;
+        public static Setting m_Setting;
         public static readonly string harmonyID = "SmartTransportation";
 
         // Mods Settings Folder
@@ -34,13 +36,29 @@ namespace SmartTransportation
             m_Setting = new Setting(this);
             m_Setting.RegisterInOptionsUI();
             GameManager.instance.localizationManager.AddSource("en-US", new LocaleEN(m_Setting));
-
-
             AssetDatabase.global.LoadSettings(nameof(SmartTransportation), m_Setting, new Setting(this));
+
+            foreach (var modInfo in GameManager.instance.modManager)
+            {
+                if (modInfo.asset.name.Equals("TransportPolicyAdjuster"))
+                {
+                    Mod.log.Info($"This mod is not compatible with {modInfo.asset.name}");
+                }
+            }
 
             updateSystem.UpdateAt<SmartTransitSystem>(SystemUpdatePhase.GameSimulation);
             //updateSystem.UpdateAt<SmartTaxiSystem>(SystemUpdatePhase.GameSimulation);
-            //updateSystem.UpdateAt<PolicySliderDataUpdaterSystem>(SystemUpdatePhase.GameSimulation);
+
+            //Harmony
+            var harmony = new Harmony(harmonyID);
+            //Harmony.DEBUG = true;
+            harmony.PatchAll(typeof(Mod).Assembly);
+            var patchedMethods = harmony.GetPatchedMethods().ToArray();
+            log.Info($"Plugin {harmonyID} made patches! Patched methods: " + patchedMethods);
+            foreach (var patchedMethod in patchedMethods)
+            {
+                log.Info($"Patched method: {patchedMethod.Module.Name}:{patchedMethod.Name}");
+            }
 
         }
 

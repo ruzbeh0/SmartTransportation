@@ -91,18 +91,18 @@ namespace SmartTransportation
             var requests = _query3.ToEntityArray(Allocator.Temp);
             var taxis = _query2.ToEntityArray(Allocator.Temp);
             
-            int standardTaxiFee = Mod.m_Setting.standard_ticket_Taxi;
-            float occupancy = (1.2f*requests.Length)/(float)taxis.Length;
-            float newFee = (float)standardTaxiFee;
-            
-            if (occupancy > Mod.m_Setting.target_occupancy_Taxi + Mod.m_Setting.threshold)
-            {
-                newFee++;
-            }
-            if (occupancy < Mod.m_Setting.target_occupancy_Taxi - Mod.m_Setting.threshold)
-            {
-                newFee--;
-            }
+            //int standardTaxiFee = Mod.m_Setting.standard_ticket_Taxi;
+            //float occupancy = (1.2f*requests.Length)/(float)taxis.Length;
+            //float newFee = (float)standardTaxiFee;
+            //
+            //if (occupancy > Mod.m_Setting.target_occupancy_Taxi + Mod.m_Setting.threshold)
+            //{
+            //    newFee++;
+            //}
+            //if (occupancy < Mod.m_Setting.target_occupancy_Taxi - Mod.m_Setting.threshold)
+            //{
+            //    newFee--;
+            //}
 
             //m_PoliciesUISystem.ModifyPolicy(this.m_CityModifiers[m_CitySystem.City], policy, active, adjustment);
             ////CityUtils.ApplyModifier(ref newFee, this.m_CityModifiers[m_CitySystem.City], CityModifierType.TaxiStartingFee);
@@ -130,10 +130,10 @@ namespace SmartTransportation
             //
             //m_CityModifiers[m_CitySystem.City] = modifiers;
             
-             if (Mod.m_Setting.debug)
-            {
-                Mod.log.Info($"Number of Taxis: {taxis.Length}, Number of passengers waiting:{requests.Length}, Taxi Occupancy:{occupancy}: New Fee: {newFee}");
-            }
+            // if (Mod.m_Setting.debug)
+            //{
+            //    Mod.log.Info($"Number of Taxis: {taxis.Length}, Number of passengers waiting:{requests.Length}, Taxi Occupancy:{occupancy}: New Fee: {newFee}");
+            //}
 
             //foreach (var taxi in taxis)
             //{
