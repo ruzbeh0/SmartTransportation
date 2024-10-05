@@ -24,6 +24,10 @@
 		<Reference Include="Colossal.PSI.Common">
 			<Private>false</Private>
 		</Reference>
+		<Reference Include="Colossal.UI">
+		</Reference>
+		<Reference Include="Colossal.UI.Binding">
+		</Reference>
 		<Reference Include="Game">
 			<Private>false</Private>
 		</Reference>

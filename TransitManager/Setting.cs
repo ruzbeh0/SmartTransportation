@@ -93,7 +93,7 @@ namespace SmartTransportation
         [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_bus))]
         public int max_ticket_discount_bus { get; set; }
 
-        [SettingsUISlider(min = 0, max = 100, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISlider(min = -50, max = 100, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
         [SettingsUISection(TransitSection, BusGroup)]
         [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_bus))]
         public int max_vahicles_adj_bus { get; set; }
@@ -126,7 +126,7 @@ namespace SmartTransportation
         [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Tram))]
         public int max_ticket_discount_Tram { get; set; }
 
-        [SettingsUISlider(min = 0, max = 100, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISlider(min = -50, max = 100, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
         [SettingsUISection(TransitSection, TramGroup)]
         [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Tram))]
         public int max_vahicles_adj_Tram { get; set; }
@@ -159,7 +159,7 @@ namespace SmartTransportation
         [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Subway))]
         public int max_ticket_discount_Subway { get; set; }
 
-        [SettingsUISlider(min = 0, max = 100, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISlider(min = -50, max = 100, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
         [SettingsUISection(TransitSection, SubwayGroup)]
         [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Subway))]
         public int max_vahicles_adj_Subway { get; set; }
@@ -192,7 +192,7 @@ namespace SmartTransportation
         [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Train))]
         public int max_ticket_discount_Train { get; set; }
 
-        [SettingsUISlider(min = 0, max = 100, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
+        [SettingsUISlider(min = -50, max = 100, step = 1, scalarMultiplier = 1, unit = Unit.kPercentage)]
         [SettingsUISection(TransitSection, TrainGroup)]
         [SettingsUIDisableByCondition(typeof(Setting), nameof(disable_Train))]
         public int max_vahicles_adj_Train { get; set; }

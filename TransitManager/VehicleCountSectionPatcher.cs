@@ -1,4 +1,5 @@
 using Colossal.Logging;
+using Colossal.UI.Binding;
 using Game.Buildings;
 using Game.Pathfind;
 using Game.Prefabs;
@@ -89,20 +90,20 @@ namespace TransportPolicyAdjuster
                 switch (transportLineData.m_TransportType)
                 {
                     case TransportType.Bus:
-                        m_IntResults[3] *= (int)Math.Round(1 + Mod.m_Setting.max_vahicles_adj_bus / 100f);
-                        m_IntResults[2] *= (int)Math.Round(1 - Mod.m_Setting.min_vahicles_adj_bus / 100f);
+                        m_IntResults[3] = (int)Math.Round(m_IntResults[3] * (1 + Mod.m_Setting.max_vahicles_adj_bus / 100f));
+                        m_IntResults[2] = (int)Math.Round(m_IntResults[2] * (1 - Mod.m_Setting.min_vahicles_adj_bus / 100f));
                         break;
                     case TransportType.Tram:
-                        m_IntResults[3] *= (int)Math.Round(1 + Mod.m_Setting.max_vahicles_adj_Tram / 100f);
-                        m_IntResults[2] *= (int)Math.Round(1 - Mod.m_Setting.min_vahicles_adj_Tram / 100f);
+                        m_IntResults[3] = (int)Math.Round(m_IntResults[3] * (1 + Mod.m_Setting.max_vahicles_adj_Tram / 100f));
+                        m_IntResults[2] = (int)Math.Round(m_IntResults[2] * (1 - Mod.m_Setting.min_vahicles_adj_Tram / 100f));
                         break;
                     case TransportType.Subway:
-                        m_IntResults[3] *= (int)Math.Round(1 + Mod.m_Setting.max_vahicles_adj_Subway / 100f);
-                        m_IntResults[2] *= (int)Math.Round(1 - Mod.m_Setting.min_vahicles_adj_Subway / 100f);
+                        m_IntResults[3] = (int)Math.Round(m_IntResults[3] * (1 + Mod.m_Setting.max_vahicles_adj_Subway / 100f));
+                        m_IntResults[2] = (int)Math.Round(m_IntResults[2] * (1 - Mod.m_Setting.min_vahicles_adj_Subway / 100f));
                         break;
                     case TransportType.Train:
-                        m_IntResults[3] *= (int)Math.Round(1 + Mod.m_Setting.max_vahicles_adj_Train / 100f);
-                        m_IntResults[2] *= (int)Math.Round(1 - Mod.m_Setting.min_vahicles_adj_Train / 100f);
+                        m_IntResults[3] = (int)Math.Round(m_IntResults[3] * (1 + Mod.m_Setting.max_vahicles_adj_Train / 100f));
+                        m_IntResults[2] = (int)Math.Round(m_IntResults[2] * (1 - Mod.m_Setting.min_vahicles_adj_Train / 100f));
                         break;
                 }
 
@@ -160,62 +161,61 @@ namespace TransportPolicyAdjuster
             return false;
         }
         
-        //[HarmonyPatch(typeof(Game.UI.InGame.VehicleCountSection), nameof(OnSetVehicleCount))]
-        //[HarmonyPrefix]
-        //public static bool OnSetVehicleCount(float newVehicleCount, ref Game.UI.InGame.VehicleCountSection __instance)
-        //{
-        //    try
-        //    {
-        //        var m_PoliciesUISystem = __instance.GetMemberValue<PoliciesUISystem>("m_PoliciesUISystem");
-        //        var selectedEntity = __instance.GetMemberValue<Entity>("selectedEntity");
-        //        var m_VehicleCountPolicy = __instance.GetMemberValue<Entity>("m_VehicleCountPolicy");
-        //
-        //        var stableDuration = __instance.GetMemberValue<float>("stableDuration");
-        //
-        //        var typeHandle = __instance.GetMemberValue<object>("__TypeHandle");
-        //        var __Game_Prefabs_TransportLineData_RO_ComponentLookup = typeHandle.GetMemberValue<ComponentLookup<TransportLineData>>("__Game_Prefabs_TransportLineData_RO_ComponentLookup");
-        //        var defaultVehicleInterval = __Game_Prefabs_TransportLineData_RO_ComponentLookup[__instance.GetMemberValue<Entity>("selectedPrefab")].m_DefaultVehicleInterval;
-        //
-        //        Mod.log.Info($"newVehicleCount: {newVehicleCount}, stableDuration: {stableDuration}, defaultVehicleInterval: {defaultVehicleInterval}");
-        //
-        //        float vehicleInterval = 100f / (stableDuration / (defaultVehicleInterval * newVehicleCount));
-        //        m_PoliciesUISystem.SetPolicy(selectedEntity, m_VehicleCountPolicy, active: true, vehicleInterval);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        var logger = LogManager.GetLogger(nameof(TransportPolicyAdjuster)).SetShowsErrorsInUI(true);
-        //        logger.Critical(ex, $"Something went wrong in the OnSetVehicleCount of VehicleCountSection");
-        //    }
-        //    return false;
-        //}
+        [HarmonyPatch(typeof(Game.UI.InGame.VehicleCountSection), nameof(OnSetVehicleCount))]
+        [HarmonyPrefix]
+        public static bool OnSetVehicleCount(float newVehicleCount, ref Game.UI.InGame.VehicleCountSection __instance)
+        {
+            try
+            {
+                var m_PoliciesUISystem = __instance.GetMemberValue<PoliciesUISystem>("m_PoliciesUISystem");
+                var selectedEntity = __instance.GetMemberValue<Entity>("selectedEntity");
+                var m_VehicleCountPolicy = __instance.GetMemberValue<Entity>("m_VehicleCountPolicy");
+        
+                var stableDuration = __instance.GetMemberValue<float>("stableDuration");
+        
+                var typeHandle = __instance.GetMemberValue<object>("__TypeHandle");
+                var __Game_Prefabs_TransportLineData_RO_ComponentLookup = typeHandle.GetMemberValue<ComponentLookup<TransportLineData>>("__Game_Prefabs_TransportLineData_RO_ComponentLookup");
+                var defaultVehicleInterval = __Game_Prefabs_TransportLineData_RO_ComponentLookup[__instance.GetMemberValue<Entity>("selectedPrefab")].m_DefaultVehicleInterval;
+        
+                //Mod.log.Info($"newVehicleCount: {newVehicleCount}, stableDuration: {stableDuration}, defaultVehicleInterval: {defaultVehicleInterval}");
+        
+                float vehicleInterval = 100f / (stableDuration / (defaultVehicleInterval * newVehicleCount));
+                m_PoliciesUISystem.SetPolicy(selectedEntity, m_VehicleCountPolicy, active: true, vehicleInterval);
+            }
+            catch (Exception ex)
+            {
+                var logger = LogManager.GetLogger(nameof(TransportPolicyAdjuster)).SetShowsErrorsInUI(true);
+                logger.Critical(ex, $"Something went wrong in the OnSetVehicleCount of VehicleCountSection");
+            }
+            return false;
+        }
 
-        //[HarmonyPatch(typeof(Game.UI.InGame.VehicleCountSection), nameof(OnWriteProperties))]
-        //[HarmonyPrefix]
-        //public static bool OnWriteProperties(ref IJsonWriter writer, ref Game.UI.InGame.VehicleCountSection __instance)
-        //{
-        //    try
-        //    {
-        //        var typeHandle = __instance.GetMemberValue<object>("__TypeHandle");
-        //        var __Game_Prefabs_TransportLineData_RO_ComponentLookup = typeHandle.GetMemberValue<ComponentLookup<TransportLineData>>("__Game_Prefabs_TransportLineData_RO_ComponentLookup");
-        //        __Game_Prefabs_TransportLineData_RO_ComponentLookup.Update(ref __instance.CheckedStateRef);
-        //        var maxVehicleCount = Mod.m_Setting.GetMaximumCount(__Game_Prefabs_TransportLineData_RO_ComponentLookup[__instance.GetMemberValue<Entity>("selectedPrefab")].m_TransportType);
-        //
-        //        writer.PropertyName("vehicleCountMin");
-        //        writer.Write(1);
-        //        writer.PropertyName("vehicleCountMax");
-        //        writer.Write(maxVehicleCount);
-        //        writer.PropertyName("vehicleCount");
-        //        writer.Write(__instance.GetMemberValue<int>("vehicleCount"));
-        //        writer.PropertyName("activeVehicles");
-        //        writer.Write(__instance.GetMemberValue<int>("activeVehicles"));
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        var logger = LogManager.GetLogger(nameof(TransportPolicyAdjuster)).SetShowsErrorsInUI(true);
-        //        logger.Critical(ex, $"Something went wrong in the OnWriteProperties of VehicleCountSection");
-        //    }
-        //    return false;
-        //}
+        [HarmonyPatch(typeof(Game.UI.InGame.VehicleCountSection), nameof(OnWriteProperties))]
+        [HarmonyPrefix]
+        public static bool OnWriteProperties(ref IJsonWriter writer, ref Game.UI.InGame.VehicleCountSection __instance)
+        {
+            try
+            {
+                var typeHandle = __instance.GetMemberValue<object>("__TypeHandle");
+                var __Game_Prefabs_TransportLineData_RO_ComponentLookup = typeHandle.GetMemberValue<ComponentLookup<TransportLineData>>("__Game_Prefabs_TransportLineData_RO_ComponentLookup");
+                __Game_Prefabs_TransportLineData_RO_ComponentLookup.Update(ref __instance.CheckedStateRef);
+        
+                writer.PropertyName("vehicleCountMin");
+                writer.Write(__instance.GetMemberValue<int>("vehicleCountMin"));
+                writer.PropertyName("vehicleCountMax");
+                writer.Write(__instance.GetMemberValue<int>("vehicleCountMax"));
+                writer.PropertyName("vehicleCount");
+                writer.Write(__instance.GetMemberValue<int>("vehicleCount"));
+                writer.PropertyName("activeVehicles");
+                writer.Write(__instance.GetMemberValue<int>("activeVehicles"));
+            }
+            catch (Exception ex)
+            {
+                var logger = LogManager.GetLogger(nameof(TransportPolicyAdjuster)).SetShowsErrorsInUI(true);
+                logger.Critical(ex, $"Something went wrong in the OnWriteProperties of VehicleCountSection");
+            }
+            return false;
+        }
 
         [HarmonyPatch(typeof(Game.UI.InGame.VehicleCountSection), nameof(OnUpdate))]
         [HarmonyPrefix]
