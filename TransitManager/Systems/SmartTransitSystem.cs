@@ -351,6 +351,16 @@ namespace SmartTransportation
             var routeNumber = m_RouteNumbers[routeEntity];
             var transportLineData = m_TransportLineDatas[prefabRef.m_Prefab];
 
+            // hard-disable by transport type (applies even if a custom rule is assigned)
+            if (transportLineData.m_TransportType == TransportType.Tram && Mod.m_Setting.disable_Tram) return;
+            if (transportLineData.m_TransportType == TransportType.Train && Mod.m_Setting.disable_Train) return;
+            if (transportLineData.m_TransportType == TransportType.Ship && Mod.m_Setting.disable_Ship) return;
+            if (transportLineData.m_TransportType == TransportType.Bus && Mod.m_Setting.disable_bus) return;
+            if (transportLineData.m_TransportType == TransportType.Subway && Mod.m_Setting.disable_Subway) return;
+            if (transportLineData.m_TransportType == TransportType.Airplane && Mod.m_Setting.disable_Airplane) return;
+            if (transportLineData.m_TransportType == TransportType.Ferry && Mod.m_Setting.disable_Ferry) return;
+
+
             if (Mod.m_Setting.debug)
                 Mod.log.Info($"--- Processing Route #{routeNumber.m_Number} ({transportLineData.m_TransportType}) ---");
 
