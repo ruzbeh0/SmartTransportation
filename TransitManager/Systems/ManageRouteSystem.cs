@@ -307,7 +307,6 @@ namespace SmartTransportation.Bridge
                 return (custom.ruleId, custom.Item2);
             }
 
-            // 3) Nothing found => let caller fall back to "Disabled"
             return default;
 
         }
@@ -508,20 +507,15 @@ namespace SmartTransportation.Bridge
             {
                 foreach (var ent in entities)
                 {
-                    if (!EntityManager.HasComponent<TransportLine>(ent))
-                        continue;
-                    if (!EntityManager.HasComponent<RouteNumber>(ent))
-                        continue;
-                    if (!EntityManager.HasComponent<PrefabRef>(ent))
-                        continue;
+                    if (!EntityManager.HasComponent<TransportLine>(ent)) continue;
+                    if (!EntityManager.HasComponent<RouteNumber>(ent)) continue;
+                    if (!EntityManager.HasComponent<PrefabRef>(ent)) continue;
 
                     var rn = EntityManager.GetComponentData<RouteNumber>(ent);
-                    if (rn.m_Number != routeNumber)
-                        continue;
+                    if (rn.m_Number != routeNumber) continue;
 
                     var prefabRef = EntityManager.GetComponentData<PrefabRef>(ent);
-                    if (!EntityManager.HasComponent<TransportLineData>(prefabRef.m_Prefab))
-                        continue;
+                    if (!EntityManager.HasComponent<TransportLineData>(prefabRef.m_Prefab)) continue;
 
                     var tld = EntityManager.GetComponentData<TransportLineData>(prefabRef.m_Prefab);
                     var tTypeString = tld.m_TransportType.ToString();
@@ -529,15 +523,25 @@ namespace SmartTransportation.Bridge
                     if (!string.Equals(tTypeString, transportTypeString, StringComparison.OrdinalIgnoreCase))
                         continue;
 
-                    // We found the route; apply the rule
-                    if (ruleIdOrNull.HasValue)
+                    var defaultRuleId = new Colossal.Hash128((uint)tld.m_TransportType, 0, 0, 0);
+                    var disabledRuleId = new Colossal.Hash128((uint)disabled_int_id, 0, 0, 0);
+
+                    if (!ruleIdOrNull.HasValue)
                     {
-                        SetRouteRule(ent, ruleIdOrNull.Value);
+                        // No rule means clear override.
+                        if (EntityManager.HasComponent<RouteRule>(ent))
+                            EntityManager.RemoveComponent<RouteRule>(ent);
+                    }
+                    else if (ruleIdOrNull.Value.Equals(defaultRuleId))
+                    {
+                        // Reverting to the original Bus/Tram/etc. rule should restore vanilla/default behavior.
+                        if (EntityManager.HasComponent<RouteRule>(ent))
+                            EntityManager.RemoveComponent<RouteRule>(ent);
                     }
                     else
                     {
-                        // Disabled => clear / set to "Disabled" rule, however you handle that today
-                        //ClearRouteRule(ent);
+                        // Custom rule, Disabled rule, or other explicit override.
+                        SetRouteRule(ent, ruleIdOrNull.Value);
                     }
 
                     break;

@@ -1,7 +1,6 @@
 using Colossal.Logging;
 using Colossal.UI.Binding;
 using Game.UI;
-using Newtonsoft.Json;
 using SmartTransportation.Bridge;
 using SmartTransportation.Extensions;
 using System;

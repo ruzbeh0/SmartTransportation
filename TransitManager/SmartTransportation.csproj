@@ -78,11 +78,16 @@
 
 	<ItemGroup>
 	  <PackageReference Include="Lib.Harmony" Version="2.2.2" />
-	  <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.4"
+					PrivateAssets="all"
+					ExcludeAssets="runtime" />
 	</ItemGroup>
 		
 	<Target Name="BuildUI" AfterTargets="AfterBuild">
 		<Exec Command="npm run build" WorkingDirectory="$(ProjectDir)/UI" />
+	</Target>
+	<Target Name="RemoveNewtonsoftFromOutput" AfterTargets="Build">
+		<Delete Files="$(OutputPath)Newtonsoft.Json.dll" />
 	</Target>
 
 </Project>
