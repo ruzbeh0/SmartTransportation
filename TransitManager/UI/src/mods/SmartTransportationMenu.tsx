@@ -18,6 +18,17 @@ interface SectionItem {
 	defaultDisplay: string;
 }
 
+interface CustomRule {
+	ruleId: string;
+	ruleName: string;
+	occupancy: number;
+	stdTicket: number;
+	maxTicketInc: number;
+	maxTicketDec: number;
+	maxVehAdj: number;
+	minVehAdj: number;
+}
+
 type SectionsType = Record<string, SectionItem>;
 const menuVisibleBinding = bindLocalValue(false);
 const customRulesVisibleBinding = bindLocalValue(false);
@@ -50,6 +61,7 @@ const SmartTransportationMenu: FC = () => {
 
 	
 	const [rulesRefreshToken, setRulesRefreshToken] = useState(0);
+	const [editingRule, setEditingRule] = useState<CustomRule | null>(null);
 
 	const sections = useMemo<SectionsType>(
 		() => ({
@@ -88,12 +100,14 @@ const SmartTransportationMenu: FC = () => {
 				return;
 			}
 
+			if (name === "AddCustomRule" && !section.isOpen) {
+				setEditingRule(null);
+			}
+
 			section.toggle(!section.isOpen);
 		},
 		[sections]
 	);
-
-	
 
 	return (
 		<div>
@@ -163,13 +177,23 @@ const SmartTransportationMenu: FC = () => {
 				<CustomRulesPanel
 					key={rulesRefreshToken}
 					onClose={() => customRulesOpenTrigger(false)}
+					onEditRule={(rule: CustomRule) => {
+						setEditingRule(rule);
+						customRulesOpenTrigger(false);
+						addRuleOpenTrigger(true);
+					}}
 				/>
 			)}
 
 			{addRuleVisible && (
 				<AddCustomRulePanel
-					onClose={() => addRuleOpenTrigger(false)}
+					initialRule={editingRule}
+					onClose={() => {
+						setEditingRule(null);
+						addRuleOpenTrigger(false);
+					}}
 					onRuleSaved={() => {
+						setEditingRule(null);
 						setRulesRefreshToken((t: number) => t + 1);
 					}}
 				/>

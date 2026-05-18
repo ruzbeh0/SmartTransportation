@@ -1,29 +1,74 @@
 // src/AddCustomRulePanel.tsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { trigger } from "cs2/api";
 import { TextInput } from "../components/TextInput";
 import { Button, DraggablePanelProps, Panel } from "cs2/ui";
 import styles from "mods/AddCustomRuleComponent/AddCustomRulePanel.module.scss";
 import IntInput from "../components/IntInput";
-import { AddCustomRule } from "mods/Domain/addCustomRule";
-import { handleSave } from "mods/bindings";
+import { CustomRule } from "mods/Domain/customRule";
 interface AddCustomRulePanelProps {
-     onRuleSaved: () => void;
-     onClose: () => void;
+    onRuleSaved: () => void;
+    onClose: () => void;
+    initialRule?: CustomRule | null;
 }
 
 const AddCustomRulePanel: React.FC<AddCustomRulePanelProps & DraggablePanelProps> = ({
     onClose,
+    onRuleSaved,
+    initialRule,
 }) => {
-    const [ruleName, setRuleName] = useState("");
-    const [occupancy, setOccupancy] = useState<number>(80);
-    const [stdTicket, setStdTicket] = useState<number>(100);
-    const [maxTicketInc, setMaxTicketInc] = useState<number>(20);
-    const [maxTicketDec, setMaxTicketDec] = useState<number>(20);
-    const [maxVehAdj, setMaxVehAdj] = useState<number>(30);
-    const [minVehAdj, setMinVehAdj] = useState<number>(30);
+    const isEditing = !!initialRule?.ruleId;
 
-    
+    const [ruleName, setRuleName] = useState(initialRule?.ruleName ?? "");
+    const [occupancy, setOccupancy] = useState<number>(initialRule?.occupancy ?? 80);
+    const [stdTicket, setStdTicket] = useState<number>(initialRule?.stdTicket ?? 100);
+    const [maxTicketInc, setMaxTicketInc] = useState<number>(initialRule?.maxTicketInc ?? 20);
+    const [maxTicketDec, setMaxTicketDec] = useState<number>(initialRule?.maxTicketDec ?? 20);
+    const [maxVehAdj, setMaxVehAdj] = useState<number>(initialRule?.maxVehAdj ?? 30);
+    const [minVehAdj, setMinVehAdj] = useState<number>(initialRule?.minVehAdj ?? 30);
+
+    useEffect(() => {
+        if (!initialRule) {
+            setRuleName("");
+            setOccupancy(80);
+            setStdTicket(100);
+            setMaxTicketInc(20);
+            setMaxTicketDec(20);
+            setMaxVehAdj(30);
+            setMinVehAdj(30);
+            return;
+        }
+
+        setRuleName(initialRule.ruleName);
+        setOccupancy(initialRule.occupancy);
+        setStdTicket(initialRule.stdTicket);
+        setMaxTicketInc(initialRule.maxTicketInc);
+        setMaxTicketDec(initialRule.maxTicketDec);
+        setMaxVehAdj(initialRule.maxVehAdj);
+        setMinVehAdj(initialRule.minVehAdj);
+    }, [initialRule]);
+
+    const saveRule = () => {
+        const payload = {
+            ...(isEditing ? { ruleId: initialRule!.ruleId } : {}),
+            ruleName,
+            occupancy,
+            stdTicket,
+            maxTicketInc,
+            maxTicketDec,
+            maxVehAdj,
+            minVehAdj,
+        };
+
+        trigger(
+            "smartTransportation",
+            isEditing ? "editCustomRule" : "addCustomRule",
+            payload
+        );
+
+        onRuleSaved();
+        onClose();
+    };
 
     return (
         <Panel
@@ -37,7 +82,9 @@ const AddCustomRulePanel: React.FC<AddCustomRulePanelProps & DraggablePanelProps
             header={
             <div className={styles.header}>
               <span className={styles.headerText}>
-                Smart Transportation - Add Custom Rule
+                  {isEditing
+                      ? "Smart Transportation - Edit Custom Rule"
+                      : "Smart Transportation - Add Custom Rule"}
               </span>
             </div>
           }
@@ -150,20 +197,9 @@ const AddCustomRulePanel: React.FC<AddCustomRulePanelProps & DraggablePanelProps
                     <Button
                         variant="flat"
                         className={styles.buttonStyle}
-                        onSelect={() => {
-                            handleSave({
-                                ruleName,
-                                occupancy,
-                                stdTicket,
-                                maxTicketInc,
-                                maxTicketDec,
-                                maxVehAdj,
-                                minVehAdj
-                            });
-                            onClose();
-                        }}
+                        onSelect={saveRule}
                         >
-                        Save
+                        {isEditing ? "Save Changes" : "Save"}
                     </Button>
                 </div>
                 

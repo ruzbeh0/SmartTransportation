@@ -26,6 +26,13 @@ namespace SmartTransportation.Systems
                 AddCustomRuleFromUI,
                 new GenericUIReader<AddCustomRule>()
             ));
+
+            AddBinding(new TriggerBinding<EditCustomRule>(
+                "smartTransportation",
+                "editCustomRule",
+                EditCustomRuleFromUI,
+                new GenericUIReader<EditCustomRule>()
+            ));
         }
 
         // Shape of the JSON payload sent from AddCustomRulePanel.tsx
@@ -38,6 +45,11 @@ namespace SmartTransportation.Systems
             public int maxTicketDec { get; set; }
             public int maxVehAdj { get; set; }
             public int minVehAdj { get; set; }
+        }
+
+        public class EditCustomRule : AddCustomRule
+        {
+            public string ruleId { get; set; } = string.Empty;
         }
 
         private void AddCustomRuleFromUI(AddCustomRule dto)
@@ -61,6 +73,65 @@ namespace SmartTransportation.Systems
                 _log?.Error(ex, $"Error in {nameof(AddCustomRuleFromUI)}");
             }
             
+        }
+
+        private void EditCustomRuleFromUI(EditCustomRule dto)
+        {
+            try
+            {
+                if (dto == null)
+                {
+                    _log?.Warn($"{nameof(EditCustomRuleFromUI)} called with null dto.");
+                    return;
+                }
+
+                if (string.IsNullOrWhiteSpace(dto.ruleId))
+                {
+                    _log?.Warn($"{nameof(EditCustomRuleFromUI)} called with empty ruleId.");
+                    return;
+                }
+
+                Hash128 ruleId;
+                try
+                {
+                    ruleId = new Hash128(dto.ruleId);
+                }
+                catch (Exception ex)
+                {
+                    _log?.Warn(ex, $"{nameof(EditCustomRuleFromUI)} invalid ruleId: {dto.ruleId}");
+                    return;
+                }
+
+                // Do not allow editing built-in/default rules like Bus, Tram, Disabled, etc.
+                // Those are synced from settings and should be changed from the settings page instead.
+                if (ManageRouteSystem.RuleNames.ContainsKey(ruleId))
+                {
+                    _log?.Warn($"{nameof(EditCustomRuleFromUI)} refused to edit built-in rule: {dto.ruleId}");
+                    return;
+                }
+
+                var existing = ManageRouteBridge.GetCustomRule(ruleId);
+                if (!existing.ruleId.Equals(ruleId))
+                {
+                    _log?.Warn($"{nameof(EditCustomRuleFromUI)} rule not found: {dto.ruleId}");
+                    return;
+                }
+
+                ManageRouteBridge.SetCustomRule(
+                    ruleId,
+                    dto.ruleName ?? string.Empty,
+                    dto.occupancy,
+                    dto.stdTicket,
+                    dto.maxTicketInc,
+                    dto.maxTicketDec,
+                    dto.maxVehAdj,
+                    dto.minVehAdj
+                );
+            }
+            catch (Exception ex)
+            {
+                _log?.Error(ex, $"Error in {nameof(EditCustomRuleFromUI)}");
+            }
         }
     }
 }

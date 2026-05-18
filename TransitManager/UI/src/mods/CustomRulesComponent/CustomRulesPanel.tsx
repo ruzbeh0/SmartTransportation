@@ -11,6 +11,7 @@ import styles from "mods/CustomRulesComponent/CustomRules.module.scss";
 import classNames from "classnames";
 import { customRulesBinding$, deleteCustomRule } from "mods/bindings";
 import deleteSrc from "images/delete.svg";
+import editSrc from "images/edit.svg";
 
 
 const uilStandard = "coui://uil/Standard/";
@@ -33,9 +34,10 @@ const builtInRuleNames = new Set([
 
 interface CustomRulesPanelProps {
 	onClose: () => void;
+	onEditRule?: (rule: CustomRule) => void;
 }
 
-const CustomRulesPanel: React.FC<CustomRulesPanelProps> = ({ onClose }) => {
+const CustomRulesPanel: React.FC<CustomRulesPanelProps> = ({ onClose, onEditRule }) => {
 	const rules: CustomRule[] = useValue(customRulesBinding$);
 	const { translate } = useLocalization();
 
@@ -88,8 +90,8 @@ const CustomRulesPanel: React.FC<CustomRulesPanelProps> = ({ onClose }) => {
 
 									<div className={styles.subtitleRowRuleName}>
 										{translate(
-											"SmartTransportation.CustomRules[Delete]",
-											"Delete"
+											"SmartTransportation.CustomRules[Actions]",
+											"Actions"
 										)}
 									</div>
 									{displayRules.map((ruleConfig: CustomRule) => {
@@ -101,13 +103,22 @@ const CustomRulesPanel: React.FC<CustomRulesPanelProps> = ({ onClose }) => {
 												className={styles.definedHeightRuleName}
 											>
 												{!isBuiltIn && (
-													<Button
-														className={roundButtonHighlightStyle.button}
-														variant="icon"
-														onClick={() => deleteCustomRule(ruleConfig.ruleId)}
-													>
-														<Icon src={deleteSrc} tinted />
-													</Button>
+													<>
+														<Button
+															className={roundButtonHighlightStyle.button}
+															variant="icon"
+															onClick={() => onEditRule?.(ruleConfig)}
+														>
+															<Icon src={editSrc} tinted />
+														</Button>
+														<Button
+															className={roundButtonHighlightStyle.button}
+															variant="icon"
+															onClick={() => deleteCustomRule(ruleConfig.ruleId)}
+														>
+															<Icon src={deleteSrc} tinted />
+														</Button>
+													</>
 												)}
 												{/* For built-in rules we just render an empty cell */}
 											</div>

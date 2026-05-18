@@ -60,6 +60,24 @@ namespace SmartTransportation.Bridge
             RequireForUpdate(entityQuery);
         }
 
+        private static bool IsSmartTransportationSupportedRoute(TransportLineData transportLineData)
+        {
+            if (!transportLineData.m_PassengerTransport)
+                return false;
+
+            return transportLineData.m_TransportType switch
+            {
+                TransportType.Bus => true,
+                TransportType.Tram => true,
+                TransportType.Subway => true,
+                TransportType.Train => true,
+                TransportType.Ship => true,
+                TransportType.Airplane => true,
+                TransportType.Ferry => true,
+                _ => false
+            };
+        }
+
         protected override void OnGameLoaded(Context serializationContext)
         {
             base.OnGameLoaded(serializationContext);
@@ -270,6 +288,9 @@ namespace SmartTransportation.Bridge
                     var transportLineData = EntityManager.GetComponentData<TransportLineData>(prefab.m_Prefab);
                     TransportType transportType = transportLineData.m_TransportType;
 
+                    if (!IsSmartTransportationSupportedRoute(transportLineData))
+                        return default;
+
                     // Check if this transport type is disabled in settings
                     bool isDisabled = transportType switch
                     {
@@ -323,6 +344,9 @@ namespace SmartTransportation.Bridge
 
             var transportLineData = EntityManager.GetComponentData<TransportLineData>(prefab.m_Prefab);
             var transportType = transportLineData.m_TransportType;
+
+            if (!IsSmartTransportationSupportedRoute(transportLineData))
+                return Array.Empty<(Colossal.Hash128, string)>();
 
             // Check if this transport type is disabled in the mod settings
             bool isDisabled = transportType switch
@@ -518,6 +542,10 @@ namespace SmartTransportation.Bridge
                     if (!EntityManager.HasComponent<TransportLineData>(prefabRef.m_Prefab)) continue;
 
                     var tld = EntityManager.GetComponentData<TransportLineData>(prefabRef.m_Prefab);
+
+                    if (!IsSmartTransportationSupportedRoute(tld))
+                        continue;
+
                     var tTypeString = tld.m_TransportType.ToString();
 
                     if (!string.Equals(tTypeString, transportTypeString, StringComparison.OrdinalIgnoreCase))
@@ -597,6 +625,10 @@ namespace SmartTransportation.Bridge
                         continue;
 
                     var transportLineData = EntityManager.GetComponentData<TransportLineData>(prefabRef.m_Prefab);
+
+                    if (!IsSmartTransportationSupportedRoute(transportLineData))
+                        continue;
+
                     var transportType = transportLineData.m_TransportType;
 
                     // Determine rule currently assigned to this route
