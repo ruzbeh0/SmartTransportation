@@ -1,4 +1,5 @@
 using Colossal.UI.Binding;
+using UnityEngine;
 
 namespace SmartTransportation.Domain
 {
@@ -12,8 +13,9 @@ namespace SmartTransportation.Domain
         public int MaxTicketDec { get; }
         public int MaxVehAdj { get; }
         public int MinVehAdj { get; }
+        public Color RouteColor { get; }
 
-        public CustomRule(Colossal.Hash128 ruleId, string ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj)
+        public CustomRule(Colossal.Hash128 ruleId, string ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj, Color routeColor)
         {
             RuleId = ruleId;
             RuleName = ruleName;
@@ -23,6 +25,7 @@ namespace SmartTransportation.Domain
             MaxTicketDec = maxTicketDec;
             MaxVehAdj = maxVehAdj;
             MinVehAdj = minVehAdj;
+            RouteColor = routeColor;
         }
 
         public void Write(IJsonWriter writer)
@@ -44,6 +47,8 @@ namespace SmartTransportation.Domain
             writer.Write(MaxVehAdj);
             writer.PropertyName("minVehAdj");
             writer.Write(MinVehAdj);
+            writer.PropertyName("routeColor");
+            writer.Write(RouteColor);
             writer.TypeEnd();
         }
     }

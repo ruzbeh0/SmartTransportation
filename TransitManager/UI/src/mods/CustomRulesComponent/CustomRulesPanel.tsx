@@ -31,6 +31,11 @@ const builtInRuleNames = new Set([
 	"Ferry",
 ]);
 
+const toCssColor = (color: CustomRule["routeColor"] | undefined) => {
+	const safe = color ?? { r: 0, g: 0.54, b: 0.85, a: 1 };
+	return `rgba(${Math.round(safe.r * 255)}, ${Math.round(safe.g * 255)}, ${Math.round(safe.b * 255)}, ${safe.a})`;
+};
+
 
 interface CustomRulesPanelProps {
 	onClose: () => void;
@@ -149,6 +154,36 @@ const CustomRulesPanel: React.FC<CustomRulesPanelProps> = ({ onClose, onEditRule
 										</div>
 										))}
 									{/* Spacer if uneven split */}
+								</div>
+								<div
+									className={classNames(
+										styles.columnGroup,
+										styles.leftColumn
+									)}
+								>
+									<div className={styles.subtitleRow}>
+										{translate(
+											"SmartTransportation.CustomRules[RouteColor]",
+											"Color"
+										)}
+									</div>
+									{displayRules.map((ruleConfig: CustomRule) => {
+										const isBuiltIn = builtInRuleNames.has(ruleConfig.ruleName);
+
+										return (
+											<div
+												key={`${ruleConfig.ruleId}-color`}
+												className={styles.definedHeight}
+											>
+												{!isBuiltIn && (
+													<div
+														className={styles.colorSwatch}
+														style={{ backgroundColor: toCssColor(ruleConfig.routeColor) }}
+													/>
+												)}
+											</div>
+										);
+									})}
 								</div>
 								<div
 									className={classNames(

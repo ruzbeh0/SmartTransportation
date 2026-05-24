@@ -106,6 +106,18 @@ namespace SmartTransportation.Patches
                         m_IntResults[3] = (int)Math.Round(m_IntResults[3] * (1 + Mod.m_Setting.max_vahicles_adj_Train / 100f));
                         m_IntResults[2] = (int)Math.Round(m_IntResults[2] * (1 - Mod.m_Setting.min_vahicles_adj_Train / 100f));
                         break;
+                    case TransportType.Ship:
+                        m_IntResults[3] = (int)Math.Round(m_IntResults[3] * (1 + Mod.m_Setting.max_vahicles_adj_Ship / 100f));
+                        m_IntResults[2] = (int)Math.Round(m_IntResults[2] * (1 - Mod.m_Setting.min_vahicles_adj_Ship / 100f));
+                        break;
+                    case TransportType.Airplane:
+                        m_IntResults[3] = (int)Math.Round(m_IntResults[3] * (1 + Mod.m_Setting.max_vahicles_adj_Airplane / 100f));
+                        m_IntResults[2] = (int)Math.Round(m_IntResults[2] * (1 - Mod.m_Setting.min_vahicles_adj_Airplane / 100f));
+                        break;
+                    case TransportType.Ferry:
+                        m_IntResults[3] = (int)Math.Round(m_IntResults[3] * (1 + Mod.m_Setting.max_vahicles_adj_Ferry / 100f));
+                        m_IntResults[2] = (int)Math.Round(m_IntResults[2] * (1 - Mod.m_Setting.min_vahicles_adj_Ferry / 100f));
+                        break;
                 }
 
                 if (m_IntResults[2] < 1)

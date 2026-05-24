@@ -5,6 +5,7 @@ using SmartTransportation.Bridge;
 using SmartTransportation.Extensions;
 using System;
 using Colossal;
+using UnityColor = UnityEngine.Color;
 
 namespace SmartTransportation.Systems
 {
@@ -40,11 +41,12 @@ namespace SmartTransportation.Systems
         {
             public string ruleName { get; set; } = string.Empty;
             public int occupancy { get; set; }
-            public int stdTicket { get; set; }
+            public int stdTicket { get; set; } = 10;
             public int maxTicketInc { get; set; }
             public int maxTicketDec { get; set; }
             public int maxVehAdj { get; set; }
             public int minVehAdj { get; set; }
+            public UnityColor routeColor { get; set; } = SmartTransportation.Components.CustomRule.DefaultRouteColor;
         }
 
         public class EditCustomRule : AddCustomRule
@@ -65,7 +67,8 @@ namespace SmartTransportation.Systems
                     dto.maxTicketInc,
                     dto.maxTicketDec,
                     dto.maxVehAdj,
-                    dto.minVehAdj
+                    dto.minVehAdj,
+                    dto.routeColor
                 );
             }
             catch (Exception ex)
@@ -125,7 +128,8 @@ namespace SmartTransportation.Systems
                     dto.maxTicketInc,
                     dto.maxTicketDec,
                     dto.maxVehAdj,
-                    dto.minVehAdj
+                    dto.minVehAdj,
+                    dto.routeColor
                 );
             }
             catch (Exception ex)

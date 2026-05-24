@@ -1,11 +1,16 @@
 // src/AddCustomRulePanel.tsx
 import React, { useEffect, useState } from "react";
 import { trigger } from "cs2/api";
+import { Color } from "cs2/bindings";
 import { TextInput } from "../components/TextInput";
 import { Button, DraggablePanelProps, Panel } from "cs2/ui";
 import styles from "mods/AddCustomRuleComponent/AddCustomRulePanel.module.scss";
 import IntInput from "../components/IntInput";
 import { CustomRule } from "mods/Domain/customRule";
+import { VanillaComponentResolver } from "mods/VanillaComponentResolver";
+
+const defaultRouteColor: Color = { r: 0.0, g: 0.54, b: 0.85, a: 1.0 };
+
 interface AddCustomRulePanelProps {
     onRuleSaved: () => void;
     onClose: () => void;
@@ -18,24 +23,27 @@ const AddCustomRulePanel: React.FC<AddCustomRulePanelProps & DraggablePanelProps
     initialRule,
 }) => {
     const isEditing = !!initialRule?.ruleId;
+    const ColorField = VanillaComponentResolver.instance.ColorField;
 
     const [ruleName, setRuleName] = useState(initialRule?.ruleName ?? "");
     const [occupancy, setOccupancy] = useState<number>(initialRule?.occupancy ?? 80);
-    const [stdTicket, setStdTicket] = useState<number>(initialRule?.stdTicket ?? 100);
+    const [stdTicket, setStdTicket] = useState<number>(initialRule?.stdTicket ?? 10);
     const [maxTicketInc, setMaxTicketInc] = useState<number>(initialRule?.maxTicketInc ?? 20);
     const [maxTicketDec, setMaxTicketDec] = useState<number>(initialRule?.maxTicketDec ?? 20);
     const [maxVehAdj, setMaxVehAdj] = useState<number>(initialRule?.maxVehAdj ?? 30);
     const [minVehAdj, setMinVehAdj] = useState<number>(initialRule?.minVehAdj ?? 30);
+    const [routeColor, setRouteColor] = useState<Color>(initialRule?.routeColor ?? defaultRouteColor);
 
     useEffect(() => {
         if (!initialRule) {
             setRuleName("");
             setOccupancy(80);
-            setStdTicket(100);
+            setStdTicket(10);
             setMaxTicketInc(20);
             setMaxTicketDec(20);
             setMaxVehAdj(30);
             setMinVehAdj(30);
+            setRouteColor(defaultRouteColor);
             return;
         }
 
@@ -46,6 +54,7 @@ const AddCustomRulePanel: React.FC<AddCustomRulePanelProps & DraggablePanelProps
         setMaxTicketDec(initialRule.maxTicketDec);
         setMaxVehAdj(initialRule.maxVehAdj);
         setMinVehAdj(initialRule.minVehAdj);
+        setRouteColor(initialRule.routeColor ?? defaultRouteColor);
     }, [initialRule]);
 
     const saveRule = () => {
@@ -58,6 +67,7 @@ const AddCustomRulePanel: React.FC<AddCustomRulePanelProps & DraggablePanelProps
             maxTicketDec,
             maxVehAdj,
             minVehAdj,
+            routeColor,
         };
 
         trigger(
@@ -115,6 +125,20 @@ const AddCustomRulePanel: React.FC<AddCustomRulePanelProps & DraggablePanelProps
                 <div>
                     <div>
                         <div className={styles.labelStyle}>
+                            Route color
+                        </div>
+                        <div className={styles.colorPickerRow}>
+                            <ColorField
+                                value={routeColor}
+                                alpha={false}
+                                className={styles.colorField}
+                                onChange={setRouteColor}
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <div className={styles.labelStyle}>
                             Occupancy target (%)
                         </div>
                         <IntInput
@@ -133,7 +157,7 @@ const AddCustomRulePanel: React.FC<AddCustomRulePanelProps & DraggablePanelProps
                             id="stdTicket"
                             value={stdTicket}
                             onChange={setStdTicket}
-                            placeholder={100}
+                            placeholder={10}
                         />
                     </div>
 

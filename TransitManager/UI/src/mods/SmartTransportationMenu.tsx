@@ -1,6 +1,7 @@
 ﻿// src/SmartTransportationMenu.tsx
 import React, { FC, useCallback, useMemo, useState } from "react";
 import {bindLocalValue, useValue} from "cs2/api"
+import { Color } from "cs2/bindings";
 import { Button, Icon, Tooltip } from "cs2/ui";
 import { useLocalization } from "cs2/l10n";
 import icon from "images/tram-svgrepo-com.svg";
@@ -27,6 +28,7 @@ interface CustomRule {
 	maxTicketDec: number;
 	maxVehAdj: number;
 	minVehAdj: number;
+	routeColor: Color;
 }
 
 type SectionsType = Record<string, SectionItem>;

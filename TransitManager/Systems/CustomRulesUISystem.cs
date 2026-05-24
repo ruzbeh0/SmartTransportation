@@ -39,7 +39,7 @@ namespace SmartTransportation.Systems
         private void GetCustomRulesJson(IJsonWriter writer)
         {
             _customRules.Clear();
-            var rules = ManageRouteBridge.GetCustomRules();
+            var rules = ManageRouteBridge.GetCustomRulesWithColor();
             var settings = Mod.m_Setting;
             
             foreach(var rule in rules) 
@@ -62,7 +62,8 @@ namespace SmartTransportation.Systems
                     rule.maxTicketInc, 
                     rule.maxTicketDec, 
                     rule.maxVehAdj, 
-                    rule.minVehAdj
+                    rule.minVehAdj,
+                    rule.routeColor
                 ));
             }   
             _customRules.Write(writer);

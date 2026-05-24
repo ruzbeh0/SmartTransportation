@@ -213,7 +213,7 @@ namespace SmartTransportation.Systems
         {
             public string ruleName { get; set; } = string.Empty;
             public int occupancy { get; set; }
-            public int stdTicket { get; set; }
+            public int stdTicket { get; set; } = 10;
             public int maxTicketInc { get; set; }
             public int maxTicketDec { get; set; }
             public int maxVehAdj { get; set; }
@@ -272,7 +272,7 @@ namespace SmartTransportation.Systems
         {
             public string ruleName { get; set; } = string.Empty;
             public int occupancy { get; set; }
-            public int stdTicket { get; set; }
+            public int stdTicket { get; set; } = 10;
             public int maxTicketInc { get; set; }
             public int maxTicketDec { get; set; }
             public int maxVehAdj { get; set; }

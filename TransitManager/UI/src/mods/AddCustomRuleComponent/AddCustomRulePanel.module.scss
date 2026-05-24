@@ -47,6 +47,16 @@
     margin-bottom: 2rem;
   
 }
+.colorPickerRow {
+    display: flex;
+    align-items: center;
+    height: 32rem;
+    margin-bottom: 6rem;
+}
+.colorField {
+    width: 48rem;
+    height: 24rem;
+}
 .buttonSection{
     display: flex;
 }

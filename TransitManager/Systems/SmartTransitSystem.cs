@@ -489,13 +489,8 @@ namespace SmartTransportation
             int setVehicles = TransportLineSystem.CalculateVehicleCount(vehicleInterval, stableDuration);
             int oldVehicles = setVehicles;
 
-            if (hasCustomRule)
-                minVehicles = (int)Math.Round(minVehicles * (1 - config.MinVehiclesAdj / 100f));
-            else
-            {
-                maxVehicles = (int)Math.Round(maxVehicles * (1 + config.MaxVehiclesAdj / 100f));
-                minVehicles = (int)Math.Round(minVehicles * (1 - config.MinVehiclesAdj / 100f));
-            }
+            maxVehicles = (int)Math.Round(maxVehicles * (1 + config.MaxVehiclesAdj / 100f));
+            minVehicles = (int)Math.Round(minVehicles * (1 - config.MinVehiclesAdj / 100f));
             if (minVehicles < 1) minVehicles = 1;
 
             float targetRatio = config.OccupancyTarget / 100f;

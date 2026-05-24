@@ -2,6 +2,7 @@
 using System;
 using Unity.Collections;
 using Unity.Entities;
+using UnityColor = UnityEngine.Color;
 
 namespace SmartTransportation.Bridge
 {
@@ -63,6 +64,21 @@ namespace SmartTransportation.Bridge
             return ManageRouteSystem.GetCustomRules();
         }
 
+        public static (
+            Colossal.Hash128 ruleId,
+            string ruleName,
+            int occupancy,
+            int stdTicket,
+            int maxTicketInc,
+            int maxTicketDec,
+            int maxVehAdj,
+            int minVehAdj,
+            UnityColor routeColor
+        )[] GetCustomRulesWithColor()
+        {
+            return ManageRouteSystem.GetCustomRulesWithColor();
+        }
+
 
         /// <summary>
         /// Updates the properties of an existing custom rule identified by the given ruleId.
@@ -86,6 +102,20 @@ namespace SmartTransportation.Bridge
             int minVehAdj)
         {
             ManageRouteSystem.SetCustomRule(ruleId, ruleName, occupancy, stdTicket, maxTicketInc, maxTicketDec, maxVehAdj, minVehAdj);
+        }
+
+        public static void SetCustomRule(
+            Colossal.Hash128 ruleId,
+            string ruleName,
+            int occupancy,
+            int stdTicket,
+            int maxTicketInc,
+            int maxTicketDec,
+            int maxVehAdj,
+            int minVehAdj,
+            UnityColor routeColor)
+        {
+            ManageRouteSystem.SetCustomRule(ruleId, ruleName, occupancy, stdTicket, maxTicketInc, maxTicketDec, maxVehAdj, minVehAdj, routeColor);
         }
 
 

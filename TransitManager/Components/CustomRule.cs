@@ -8,12 +8,16 @@ using System.Text;
 using System.Threading.Tasks;
 using Unity.Collections;
 using Unity.Entities;
+using UnityEngine;
 
 namespace SmartTransportation.Components
 {
     public struct CustomRule : IComponentData, IQueryTypeParameter, ISerializable
     {
-        public int version = 1;
+        public const int CurrentVersion = 2;
+        public static readonly Color DefaultRouteColor = new Color(0.0f, 0.54f, 0.85f, 1f);
+
+        public int version = CurrentVersion;
         private Colossal.Hash128 _ruleId; // Changed to a private field
         public Colossal.Hash128 ruleId => _ruleId; // Exposed as a read-only property
         public FixedString64Bytes ruleName;
@@ -23,8 +27,14 @@ namespace SmartTransportation.Components
         public int maxTicketDec;
         public int maxVehAdj;
         public int minVehAdj;
+        public Color routeColor;
 
         public CustomRule(FixedString64Bytes ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj)
+            : this(ruleName, occupancy, stdTicket, maxTicketInc, maxTicketDec, maxVehAdj, minVehAdj, DefaultRouteColor)
+        {
+        }
+
+        public CustomRule(FixedString64Bytes ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj, Color routeColor)
         {
             Colossal.Hash128 ruleId;
             do
@@ -40,10 +50,17 @@ namespace SmartTransportation.Components
             this.maxTicketDec = maxTicketDec;
             this.maxVehAdj = maxVehAdj;
             this.minVehAdj = minVehAdj;
+            this.routeColor = routeColor;
         }
 
         public CustomRule(Colossal.Hash128 ruleId, FixedString64Bytes ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj)
+            : this(ruleId, ruleName, occupancy, stdTicket, maxTicketInc, maxTicketDec, maxVehAdj, minVehAdj, DefaultRouteColor)
         {
+        }
+
+        public CustomRule(Colossal.Hash128 ruleId, FixedString64Bytes ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj, Color routeColor)
+        {
+            version = CurrentVersion;
             this._ruleId = ruleId;
             this.ruleName = ruleName;
             this.occupancy = occupancy;
@@ -52,11 +69,12 @@ namespace SmartTransportation.Components
             this.maxTicketDec = maxTicketDec;
             this.maxVehAdj = maxVehAdj;
             this.minVehAdj = minVehAdj;
+            this.routeColor = routeColor;
         }
 
         public void Serialize<TWriter>(TWriter writer) where TWriter : IWriter
         {
-            writer.Write(version);
+            writer.Write(CurrentVersion);
             writer.Write(_ruleId); // Use the private field
             writer.Write(ruleName.ToString());
             writer.Write(occupancy);
@@ -65,6 +83,10 @@ namespace SmartTransportation.Components
             writer.Write(maxTicketDec);
             writer.Write(maxVehAdj);
             writer.Write(minVehAdj);
+            writer.Write(routeColor.r);
+            writer.Write(routeColor.g);
+            writer.Write(routeColor.b);
+            writer.Write(routeColor.a);
         }
 
         public void Deserialize<TReader>(TReader reader) where TReader : IReader
@@ -79,6 +101,18 @@ namespace SmartTransportation.Components
             reader.Read(out maxTicketDec);
             reader.Read(out maxVehAdj);
             reader.Read(out minVehAdj);
+            if (version >= 2)
+            {
+                reader.Read(out float r);
+                reader.Read(out float g);
+                reader.Read(out float b);
+                reader.Read(out float a);
+                routeColor = new Color(r, g, b, a);
+            }
+            else
+            {
+                routeColor = DefaultRouteColor;
+            }
         }
     }
 }

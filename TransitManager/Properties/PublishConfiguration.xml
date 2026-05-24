@@ -50,13 +50,16 @@ The min/max vehicle settings were based on the work developed by SonnyX on the T
 	<!--Link to the forum post where the mod can be discussed-->
 	<ForumLink Value="https://forum.paradoxplaza.com/forum/threads/smart-transportation-mod.1704128/" />
 	<!--Version of the mod-->
-	<ModVersion Value="0.6.2" />
+	<ModVersion Value="0.7" />
 	<!--Recommended version of the base game to use the mod-->
 	<GameVersion Value="1.5.*" />
 	<!--Dependency for the mod, can be set multiple times-->
 	<Dependency Id="121812" />
 	<ChangeLog>
-* Removed Newtonsoft.Json.dll from this mod
+* Added route color support for custom rules, including a color picker in the custom rule editor
+* Changed the default standard ticket value for new custom rules from 100 to 10
+* Fixed vehicle count display support for Ship, Airplane, and Ferry routes
+* Simplified min/max vehicle adjustment logic so built-in and custom rules use the same calculation path
 	</ChangeLog>
 	<!--External link. supported types are discord, github, youtube, twitch, x, paypal, patreon-->
 	<ExternalLink Type="github" Url="https://github.com/ruzbeh0/SmartTransportation" />

@@ -1,3 +1,5 @@
+import { Color } from "cs2/bindings";
+
 export type AddCustomRule = {
     ruleName: string;
     occupancy: number;
@@ -6,4 +8,5 @@ export type AddCustomRule = {
     maxTicketDec: number;
     maxVehAdj: number;
     minVehAdj: number;
+    routeColor: Color;
 }

@@ -19,6 +19,8 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using Unity.Collections;
 using Unity.Entities;
+using UnityColor = UnityEngine.Color;
+using UnityColor32 = UnityEngine.Color32;
 using static Unity.Collections.Unicode;
 using Colossal.Serialization.Entities;
 
@@ -84,6 +86,7 @@ namespace SmartTransportation.Bridge
 
             RemoveDuplicateCustomRuleEntities();
             SyncDefaultRulesFromSettings();
+            ApplyAllCustomRuleColors();
 
             // This system only needs to run on load.
             firstUpdate = true;
@@ -397,8 +400,8 @@ namespace SmartTransportation.Bridge
 
         public (Colossal.Hash128 ruleId, string, int, int, int, int, int, int) GetCustomRule(Colossal.Hash128 ruleId)
         {
-            EntityQuery query = EntityManager.CreateEntityQuery(typeof(CustomRule));
-            var rules = query.ToComponentDataArray<CustomRule>(Allocator.Temp);
+            using var query = EntityManager.CreateEntityQuery(typeof(CustomRule));
+            using var rules = query.ToComponentDataArray<CustomRule>(Allocator.Temp);
 
             foreach (var r in rules)
             {
@@ -413,6 +416,11 @@ namespace SmartTransportation.Bridge
 
 
         public void SetCustomRule(Colossal.Hash128 ruleId, FixedString64Bytes ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj)
+        {
+            SetCustomRule(ruleId, ruleName, occupancy, stdTicket, maxTicketInc, maxTicketDec, maxVehAdj, minVehAdj, GetCustomRuleColorOrDefault(ruleId));
+        }
+
+        public void SetCustomRule(Colossal.Hash128 ruleId, FixedString64Bytes ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj, UnityColor routeColor)
         {
             EntityQuery query = EntityManager.CreateEntityQuery(typeof(CustomRule));
             var entities = query.ToEntityArray(Allocator.Temp);
@@ -432,8 +440,10 @@ namespace SmartTransportation.Bridge
                         updated.maxTicketDec = maxTicketDec;
                         updated.maxVehAdj = maxVehAdj;
                         updated.minVehAdj = minVehAdj;
+                        updated.routeColor = NormalizeColor(routeColor);
 
                         EntityManager.SetComponentData(entities[i], updated);
+                        ApplyRuleColorToRoutes(ruleId, updated.routeColor);
 
                         return;
                     }
@@ -451,7 +461,7 @@ namespace SmartTransportation.Bridge
         public Colossal.Hash128 AddCustomRule()
         {
             var newRuleEntity = EntityManager.CreateEntity(typeof(CustomRule));
-            CustomRule customRule = new CustomRule("Unnamed", 0, 0, 0, 0, 0, 0);
+            CustomRule customRule = new CustomRule("Unnamed", 0, 10, 0, 0, 0, 0, CustomRule.DefaultRouteColor);
             EntityManager.SetComponentData(newRuleEntity, customRule);
 
             return customRule.ruleId; // Return the generated ruleId
@@ -515,6 +525,136 @@ namespace SmartTransportation.Bridge
             return result;
         }
 
+        public (Colossal.Hash128 ruleId, string ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj, UnityColor routeColor)[] GetCustomRulesWithColor()
+        {
+            using var query = EntityManager.CreateEntityQuery(ComponentType.ReadOnly<CustomRule>());
+            using var rules = query.ToComponentDataArray<CustomRule>(Allocator.Temp);
+
+            var result = new (Colossal.Hash128, string, int, int, int, int, int, int, UnityColor)[rules.Length];
+
+            for (int i = 0; i < rules.Length; i++)
+            {
+                var r = rules[i];
+                result[i] = (
+                    r.ruleId,
+                    r.ruleName.ToString(),
+                    r.occupancy,
+                    r.stdTicket,
+                    r.maxTicketInc,
+                    r.maxTicketDec,
+                    r.maxVehAdj,
+                    r.minVehAdj,
+                    NormalizeColor(r.routeColor)
+                );
+            }
+
+            return result;
+        }
+
+        private UnityColor GetCustomRuleColorOrDefault(Colossal.Hash128 ruleId)
+        {
+            using var query = EntityManager.CreateEntityQuery(ComponentType.ReadOnly<CustomRule>());
+            using var rules = query.ToComponentDataArray<CustomRule>(Allocator.Temp);
+
+            foreach (var r in rules)
+            {
+                if (r.ruleId == ruleId)
+                    return NormalizeColor(r.routeColor);
+            }
+
+            return CustomRule.DefaultRouteColor;
+        }
+
+        private bool TryGetCustomRuleColor(Colossal.Hash128 ruleId, out UnityColor routeColor)
+        {
+            using var query = EntityManager.CreateEntityQuery(ComponentType.ReadOnly<CustomRule>());
+            using var rules = query.ToComponentDataArray<CustomRule>(Allocator.Temp);
+
+            foreach (var r in rules)
+            {
+                if (r.ruleId == ruleId)
+                {
+                    routeColor = NormalizeColor(r.routeColor);
+                    return true;
+                }
+            }
+
+            routeColor = CustomRule.DefaultRouteColor;
+            return false;
+        }
+
+        private void ApplyAllCustomRuleColors()
+        {
+            foreach (var rule in GetCustomRulesWithColor())
+            {
+                ApplyRuleColorToRoutes(rule.ruleId, rule.routeColor);
+            }
+        }
+
+        private void ApplyRuleColorToRouteIfCustom(Entity routeEntity, Colossal.Hash128 ruleId)
+        {
+            if (RuleNames.ContainsKey(ruleId))
+                return;
+
+            if (TryGetCustomRuleColor(ruleId, out var routeColor))
+                ApplyRouteColor(routeEntity, routeColor);
+        }
+
+        private void ApplyRuleColorToRoutes(Colossal.Hash128 ruleId, UnityColor routeColor)
+        {
+            if (RuleNames.ContainsKey(ruleId))
+                return;
+
+            using var entities = entityQuery.ToEntityArray(Allocator.Temp);
+
+            foreach (var ent in entities)
+            {
+                if (EntityManager.TryGetComponent<RouteRule>(ent, out var routeRule) && routeRule.customRule == ruleId)
+                    ApplyRouteColor(ent, routeColor);
+            }
+        }
+
+        private void ApplyRouteColor(Entity routeEntity, UnityColor routeColor)
+        {
+            var routeColorComponent = new Game.Routes.Color((UnityColor32)NormalizeColor(routeColor));
+
+            if (EntityManager.HasComponent<Game.Routes.Color>(routeEntity))
+                EntityManager.SetComponentData(routeEntity, routeColorComponent);
+            else
+                EntityManager.AddComponentData(routeEntity, routeColorComponent);
+
+            if (EntityManager.HasBuffer<RouteVehicle>(routeEntity))
+            {
+                var routeVehicles = EntityManager.GetBuffer<RouteVehicle>(routeEntity, true);
+                foreach (var routeVehicle in routeVehicles)
+                {
+                    var vehicle = routeVehicle.m_Vehicle;
+                    if (vehicle == Entity.Null || !EntityManager.Exists(vehicle))
+                        continue;
+
+                    if (EntityManager.HasComponent<Game.Routes.Color>(vehicle))
+                        EntityManager.SetComponentData(vehicle, routeColorComponent);
+                    else
+                        EntityManager.AddComponentData(vehicle, routeColorComponent);
+                }
+            }
+
+            var colorUpdated = EntityManager.CreateEntity(typeof(ColorUpdated));
+            EntityManager.SetComponentData(colorUpdated, new ColorUpdated(routeEntity));
+        }
+
+        private static UnityColor NormalizeColor(UnityColor color)
+        {
+            if (color.a <= 0f)
+                color.a = 1f;
+
+            color.r = UnityEngine.Mathf.Clamp01(color.r);
+            color.g = UnityEngine.Mathf.Clamp01(color.g);
+            color.b = UnityEngine.Mathf.Clamp01(color.b);
+            color.a = UnityEngine.Mathf.Clamp01(color.a);
+            return color;
+        }
+
         public struct RouteInfoForUI
         {
             public int routeNumber;
@@ -570,6 +710,7 @@ namespace SmartTransportation.Bridge
                     {
                         // Custom rule, Disabled rule, or other explicit override.
                         SetRouteRule(ent, ruleIdOrNull.Value);
+                        ApplyRuleColorToRouteIfCustom(ent, ruleIdOrNull.Value);
                     }
 
                     break;
