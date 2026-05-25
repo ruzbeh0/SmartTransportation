@@ -1,5 +1,6 @@
 ﻿
 using System;
+using Game.Prefabs;
 using Unity.Collections;
 using Unity.Entities;
 using UnityColor = UnityEngine.Color;
@@ -79,6 +80,16 @@ namespace SmartTransportation.Bridge
             return ManageRouteSystem.GetCustomRulesWithColor();
         }
 
+        public static ManageRouteSystem.CustomRuleInfo[] GetCustomRuleDetails()
+        {
+            return ManageRouteSystem.GetCustomRuleDetails();
+        }
+
+        public static ManageRouteSystem.TransportVehicleOptions[] GetTransportVehicleOptions()
+        {
+            return ManageRouteSystem.GetTransportVehicleOptions();
+        }
+
 
         /// <summary>
         /// Updates the properties of an existing custom rule identified by the given ruleId.
@@ -116,6 +127,68 @@ namespace SmartTransportation.Bridge
             UnityColor routeColor)
         {
             ManageRouteSystem.SetCustomRule(ruleId, ruleName, occupancy, stdTicket, maxTicketInc, maxTicketDec, maxVehAdj, minVehAdj, routeColor);
+        }
+
+        public static void SetCustomRule(
+            Colossal.Hash128 ruleId,
+            string ruleName,
+            int occupancy,
+            int stdTicket,
+            int maxTicketInc,
+            int maxTicketDec,
+            int maxVehAdj,
+            int minVehAdj,
+            UnityColor routeColor,
+            string transportType,
+            Entity[] selectedPrimaryVehicles,
+            Entity[] selectedSecondaryVehicles)
+        {
+            ManageRouteSystem.SetCustomRule(
+                ruleId,
+                ruleName,
+                occupancy,
+                stdTicket,
+                maxTicketInc,
+                maxTicketDec,
+                maxVehAdj,
+                minVehAdj,
+                routeColor,
+                transportType,
+                selectedPrimaryVehicles,
+                selectedSecondaryVehicles);
+        }
+
+        public static void SetCustomRule(
+            Colossal.Hash128 ruleId,
+            string ruleName,
+            int occupancy,
+            int stdTicket,
+            int maxTicketInc,
+            int maxTicketDec,
+            int maxVehAdj,
+            int minVehAdj,
+            UnityColor routeColor,
+            string transportType,
+            bool useRouteColor,
+            bool useVehicleModels,
+            Entity[] selectedPrimaryVehicles,
+            Entity[] selectedSecondaryVehicles)
+        {
+            ManageRouteSystem.SetCustomRule(
+                ruleId,
+                ruleName,
+                occupancy,
+                stdTicket,
+                maxTicketInc,
+                maxTicketDec,
+                maxVehAdj,
+                minVehAdj,
+                routeColor,
+                transportType,
+                useRouteColor,
+                useVehicleModels,
+                selectedPrimaryVehicles,
+                selectedSecondaryVehicles);
         }
 
 

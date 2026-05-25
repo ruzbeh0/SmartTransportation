@@ -14,6 +14,13 @@ import { ModuleResolver } from "mods/moduleResolver";
 
 
 
+const notSpecifiedTransportType = "NotSpecified";
+const ruleAppliesToRoute = (rule: CustomRule, route: RouteInfo) =>
+	rule.ruleName === "Disabled" ||
+	!rule.transportType ||
+	rule.transportType === notSpecifiedTransportType ||
+	rule.transportType === route.transportType;
+
 
 
 const DropdownStyle: Theme | any = getModule("game-ui/menu/themes/dropdown.module.scss", "classes");
@@ -26,8 +33,8 @@ const RuleSelector = () => {
 		return null; // no route selected
 	}
 
-	const ruleDropdownItems = ruleInfos.map((ruleInfo) => {
-		const selected = ruleInfo.ruleName === route.ruleName;
+	const ruleDropdownItems = ruleInfos.filter((ruleInfo) => ruleAppliesToRoute(ruleInfo, route)).map((ruleInfo) => {
+		const selected = ruleInfo.ruleId === route.ruleId;
 
 		return (
 			<DropdownItem
@@ -39,7 +46,7 @@ const RuleSelector = () => {
                     setRouteRule(route.transportType, route.routeNumber, ruleInfo.ruleId);
                     ruleEditorVisibleBinding.update({
                         visible: true,
-                        route: { ...route, ruleName: ruleInfo.ruleName }
+                        route: { ...route, ruleName: ruleInfo.ruleName, ruleId: ruleInfo.ruleId }
                     });
                 }}
 			>

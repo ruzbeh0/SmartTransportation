@@ -379,6 +379,13 @@ namespace SmartTransportation
                 return;
             }
 
+            if (hasCustomRule && !m_ManageRouteSystem.CustomRuleAppliesToTransport(routeRule.customRule, transportLineData.m_TransportType))
+            {
+                EntityManager.RemoveComponent<RouteRule>(routeEntity);
+                hasCustomRule = false;
+                routeRule = default;
+            }
+
             RouteConfig config = GetRouteConfig(transportLineData.m_TransportType, hasCustomRule, routeRule);
 
             if (config.OccupancyTarget == 0)

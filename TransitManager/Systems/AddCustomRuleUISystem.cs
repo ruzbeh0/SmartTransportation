@@ -5,6 +5,7 @@ using SmartTransportation.Bridge;
 using SmartTransportation.Extensions;
 using System;
 using Colossal;
+using Unity.Entities;
 using UnityColor = UnityEngine.Color;
 
 namespace SmartTransportation.Systems
@@ -47,6 +48,11 @@ namespace SmartTransportation.Systems
             public int maxVehAdj { get; set; }
             public int minVehAdj { get; set; }
             public UnityColor routeColor { get; set; } = SmartTransportation.Components.CustomRule.DefaultRouteColor;
+            public bool useRouteColor { get; set; }
+            public string transportType { get; set; } = "NotSpecified";
+            public bool useVehicleModels { get; set; }
+            public Entity[] selectedPrimaryVehicles { get; set; } = Array.Empty<Entity>();
+            public Entity[] selectedSecondaryVehicles { get; set; } = Array.Empty<Entity>();
         }
 
         public class EditCustomRule : AddCustomRule
@@ -58,7 +64,7 @@ namespace SmartTransportation.Systems
         {
             try
             {
-                Hash128 ruleId = ManageRouteBridge.AddCustomRule();
+                Colossal.Hash128 ruleId = ManageRouteBridge.AddCustomRule();
                 ManageRouteBridge.SetCustomRule(
                     ruleId,
                     dto.ruleName ?? string.Empty,
@@ -68,7 +74,12 @@ namespace SmartTransportation.Systems
                     dto.maxTicketDec,
                     dto.maxVehAdj,
                     dto.minVehAdj,
-                    dto.routeColor
+                    dto.routeColor,
+                    dto.transportType,
+                    dto.useRouteColor,
+                    dto.useVehicleModels,
+                    dto.selectedPrimaryVehicles ?? Array.Empty<Entity>(),
+                    dto.selectedSecondaryVehicles ?? Array.Empty<Entity>()
                 );
             }
             catch (Exception ex)
@@ -94,10 +105,10 @@ namespace SmartTransportation.Systems
                     return;
                 }
 
-                Hash128 ruleId;
+                Colossal.Hash128 ruleId;
                 try
                 {
-                    ruleId = new Hash128(dto.ruleId);
+                    ruleId = new Colossal.Hash128(dto.ruleId);
                 }
                 catch (Exception ex)
                 {
@@ -105,11 +116,10 @@ namespace SmartTransportation.Systems
                     return;
                 }
 
-                // Do not allow editing built-in/default rules like Bus, Tram, Disabled, etc.
-                // Those are synced from settings and should be changed from the settings page instead.
-                if (ManageRouteSystem.RuleNames.ContainsKey(ruleId))
+                if (ManageRouteSystem.RuleNames.TryGetValue(ruleId, out var builtInRuleName) &&
+                    string.Equals(builtInRuleName, "Disabled", StringComparison.OrdinalIgnoreCase))
                 {
-                    _log?.Warn($"{nameof(EditCustomRuleFromUI)} refused to edit built-in rule: {dto.ruleId}");
+                    _log?.Warn($"{nameof(EditCustomRuleFromUI)} refused to edit disabled rule: {dto.ruleId}");
                     return;
                 }
 
@@ -129,7 +139,12 @@ namespace SmartTransportation.Systems
                     dto.maxTicketDec,
                     dto.maxVehAdj,
                     dto.minVehAdj,
-                    dto.routeColor
+                    dto.routeColor,
+                    dto.transportType,
+                    dto.useRouteColor,
+                    dto.useVehicleModels,
+                    dto.selectedPrimaryVehicles ?? Array.Empty<Entity>(),
+                    dto.selectedSecondaryVehicles ?? Array.Empty<Entity>()
                 );
             }
             catch (Exception ex)

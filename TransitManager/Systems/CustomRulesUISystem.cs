@@ -29,6 +29,11 @@ namespace SmartTransportation.Systems
                 "customRulesJson",
                 GetCustomRulesJson
             ));
+            AddBinding(new RawValueBinding(
+                "smartTransportation",
+                "transportVehicleOptionsJson",
+                WriteTransportVehicleOptions
+            ));
             AddBinding(_deleteCustomRuleBinding = new TriggerBinding<string>(
                 Mod.modName,
                 "deleteCustomRule",
@@ -39,7 +44,7 @@ namespace SmartTransportation.Systems
         private void GetCustomRulesJson(IJsonWriter writer)
         {
             _customRules.Clear();
-            var rules = ManageRouteBridge.GetCustomRulesWithColor();
+            var rules = ManageRouteBridge.GetCustomRuleDetails();
             var settings = Mod.m_Setting;
             
             foreach(var rule in rules) 
@@ -53,6 +58,7 @@ namespace SmartTransportation.Systems
                 if (ruleName == "Train" && settings.disable_Train) continue;
                 if (ruleName == "Ship" && settings.disable_Ship) continue;
                 if (ruleName == "Airplane" && settings.disable_Airplane) continue;
+                if (ruleName == "Ferry" && settings.disable_Ferry) continue;
                 
                 _customRules.Add(new CustomRule(
                     rule.ruleId, 
@@ -63,11 +69,62 @@ namespace SmartTransportation.Systems
                     rule.maxTicketDec, 
                     rule.maxVehAdj, 
                     rule.minVehAdj,
-                    rule.routeColor
+                    rule.routeColor,
+                    rule.useRouteColor,
+                    rule.transportType == Game.Prefabs.TransportType.None ? "NotSpecified" : rule.transportType.ToString(),
+                    rule.useVehicleModels,
+                    rule.selectedPrimaryVehicles,
+                    rule.selectedSecondaryVehicles
                 ));
             }   
             _customRules.Write(writer);
         }
+
+        private void WriteTransportVehicleOptions(IJsonWriter writer)
+        {
+            var options = ManageRouteBridge.GetTransportVehicleOptions();
+
+            writer.ArrayBegin(options.Length);
+            foreach (var option in options)
+            {
+                writer.TypeBegin(Mod.Name + ".TransportVehicleOptions");
+                writer.PropertyName("transportType");
+                writer.Write(option.transportType);
+                writer.PropertyName("availablePrimaryVehicles");
+                WriteVehicles(writer, option.availablePrimaryVehicles);
+                writer.PropertyName("availableSecondaryVehicles");
+                WriteVehicles(writer, option.availableSecondaryVehicles);
+                writer.TypeEnd();
+            }
+            writer.ArrayEnd();
+        }
+
+        private static void WriteVehicles(IJsonWriter writer, ManageRouteSystem.VehiclePrefabInfo[] vehicles)
+        {
+            writer.ArrayBegin(vehicles.Length);
+            foreach (var vehicle in vehicles)
+            {
+                writer.TypeBegin(Mod.Name + ".VehiclePrefabInfo");
+                writer.PropertyName("entity");
+                writer.Write(vehicle.entity);
+                writer.PropertyName("id");
+                writer.Write(vehicle.id ?? string.Empty);
+                writer.PropertyName("locked");
+                writer.Write(vehicle.locked);
+                writer.PropertyName("multiunit");
+                writer.Write(vehicle.multiunit);
+                writer.PropertyName("requirements");
+                writer.ArrayBegin(0);
+                writer.ArrayEnd();
+                writer.PropertyName("thumbnail");
+                writer.Write(vehicle.thumbnail ?? string.Empty);
+                writer.PropertyName("objectRequirementIcons");
+                writer.WriteNull();
+                writer.TypeEnd();
+            }
+            writer.ArrayEnd();
+        }
+
         private void DeleteCustomRule(string ruleId)
         {
             if (string.IsNullOrWhiteSpace(ruleId))

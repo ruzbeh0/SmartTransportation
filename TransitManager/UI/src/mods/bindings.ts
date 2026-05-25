@@ -3,11 +3,13 @@ import { CustomRule } from "./Domain/customRule";
 import { AddCustomRule } from "mods/Domain/addCustomRule";
 import { RouteInfo } from "./Domain/routeInfo";
 import { DisabledTransportTypes } from "./Domain/disabledTranportTypes";
+import { TransportVehicleOptions } from "./Domain/transportVehicleOptions";
 import mod from "mod.json"
 
 export const handleSave = (AddCustomRule:AddCustomRule)   => trigger("smartTransportation", "addCustomRule", AddCustomRule);
 
 export const customRulesBinding$ = bindValue<CustomRule[]>("smartTransportation", "customRulesJson", []);
+export const transportVehicleOptionsBinding$ = bindValue<TransportVehicleOptions[]>("smartTransportation", "transportVehicleOptionsJson", []);
 export const deleteCustomRule = (ruleID: string) => trigger(mod.id, "deleteCustomRule", ruleID);
 
 export const ruleEditorVisibleBinding = bindLocalValue<{visible: boolean, route: RouteInfo | null}>({visible: false, route: null});

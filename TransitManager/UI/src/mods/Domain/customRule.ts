@@ -1,4 +1,4 @@
-import { Color } from "cs2/bindings";
+import { Color, Entity } from "cs2/bindings";
 
 export type CustomRule = {
     ruleId: string;
@@ -10,4 +10,9 @@ export type CustomRule = {
     maxVehAdj: number;
     minVehAdj: number;
     routeColor: Color;
+    useRouteColor: boolean;
+    transportType: string;
+    useVehicleModels: boolean;
+    selectedPrimaryVehicles: Entity[];
+    selectedSecondaryVehicles: Entity[];
 };

@@ -3,5 +3,5 @@ export type RouteInfo = {
    routeName: string; 
    transportType: string; 
    ruleName: string;
-   ruleId: number;
+   ruleId: string;
 };

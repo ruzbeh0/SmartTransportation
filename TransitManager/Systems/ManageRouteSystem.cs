@@ -1,5 +1,6 @@
 
 ﻿using Colossal.Entities;
+using Colossal.IO.AssetDatabase;
 using Colossal.PSI.Common;
 using Game;
 using Game.Events;
@@ -30,6 +31,10 @@ namespace SmartTransportation.Bridge
     public partial class ManageRouteSystem : GameSystemBase
     {
         private EntityQuery entityQuery;
+        private EntityQuery transportVehiclePrefabQuery;
+        private EntityQuery routePrefabQuery;
+        private PrefabSystem m_PrefabSystem;
+        private ImageSystem m_ImageSystem;
         private const int disabled_int_id = 999; // Used for disabled routes
         private bool firstUpdate = false;
 
@@ -45,6 +50,51 @@ namespace SmartTransportation.Bridge
             { new Colossal.Hash128((uint)TransportType.Ferry,0,0,0), TransportType.Ferry.ToString()},
         };
 
+        private static readonly TransportType[] SupportedTransportTypes =
+        {
+            TransportType.Bus,
+            TransportType.Tram,
+            TransportType.Subway,
+            TransportType.Train,
+            TransportType.Ship,
+            TransportType.Airplane,
+            TransportType.Ferry
+        };
+
+        public struct CustomRuleInfo
+        {
+            public Colossal.Hash128 ruleId;
+            public string ruleName;
+            public int occupancy;
+            public int stdTicket;
+            public int maxTicketInc;
+            public int maxTicketDec;
+            public int maxVehAdj;
+            public int minVehAdj;
+            public UnityColor routeColor;
+            public bool useRouteColor;
+            public TransportType transportType;
+            public bool useVehicleModels;
+            public Entity[] selectedPrimaryVehicles;
+            public Entity[] selectedSecondaryVehicles;
+        }
+
+        public struct VehiclePrefabInfo
+        {
+            public Entity entity;
+            public string id;
+            public bool locked;
+            public bool multiunit;
+            public string thumbnail;
+        }
+
+        public struct TransportVehicleOptions
+        {
+            public string transportType;
+            public VehiclePrefabInfo[] availablePrimaryVehicles;
+            public VehiclePrefabInfo[] availableSecondaryVehicles;
+        }
+
 
         protected override void OnCreate()
         {
@@ -58,6 +108,26 @@ namespace SmartTransportation.Bridge
             ComponentType.ReadOnly<PrefabRef>()
                 }
             });
+
+            transportVehiclePrefabQuery = GetEntityQuery(new EntityQueryDesc()
+            {
+                All = new[] {
+                    ComponentType.ReadOnly<PrefabData>(),
+                    ComponentType.ReadOnly<PublicTransportVehicleData>()
+                }
+            });
+
+            routePrefabQuery = GetEntityQuery(new EntityQueryDesc()
+            {
+                All = new[] {
+                    ComponentType.ReadOnly<PrefabData>(),
+                    ComponentType.ReadOnly<TransportLineData>(),
+                    ComponentType.ReadOnly<RouteData>()
+                }
+            });
+
+            m_PrefabSystem = World.GetOrCreateSystemManaged<PrefabSystem>();
+            m_ImageSystem = World.GetOrCreateSystemManaged<ImageSystem>();
 
             RequireForUpdate(entityQuery);
         }
@@ -80,6 +150,96 @@ namespace SmartTransportation.Bridge
             };
         }
 
+        private static bool IsSupportedTransportType(TransportType transportType)
+        {
+            return transportType switch
+            {
+                TransportType.Bus => true,
+                TransportType.Tram => true,
+                TransportType.Subway => true,
+                TransportType.Train => true,
+                TransportType.Ship => true,
+                TransportType.Airplane => true,
+                TransportType.Ferry => true,
+                _ => false
+            };
+        }
+
+        private static TransportType NormalizeRuleTransportType(TransportType transportType)
+        {
+            return IsSupportedTransportType(transportType)
+                ? transportType
+                : CustomRule.UnspecifiedTransportType;
+        }
+
+        private static TransportType ParseRuleTransportType(string transportType)
+        {
+            if (string.IsNullOrWhiteSpace(transportType) ||
+                string.Equals(transportType, "Not Specified", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(transportType, "NotSpecified", StringComparison.OrdinalIgnoreCase))
+            {
+                return CustomRule.UnspecifiedTransportType;
+            }
+
+            return Enum.TryParse(transportType, true, out TransportType parsed)
+                ? NormalizeRuleTransportType(parsed)
+                : CustomRule.UnspecifiedTransportType;
+        }
+
+        private static TransportType GetBuiltInRuleTransportType(Colossal.Hash128 ruleId)
+        {
+            foreach (var transportType in SupportedTransportTypes)
+            {
+                if (ruleId == new Colossal.Hash128((uint)transportType, 0, 0, 0))
+                    return transportType;
+            }
+
+            return CustomRule.UnspecifiedTransportType;
+        }
+
+        private UnityColor GetDefaultRouteColor(TransportType transportType)
+        {
+            if (!IsSupportedTransportType(transportType) || routePrefabQuery == null)
+                return CustomRule.DefaultRouteColor;
+
+            using var entities = routePrefabQuery.ToEntityArray(Allocator.Temp);
+
+            foreach (var entity in entities)
+            {
+                var transportLineData = EntityManager.GetComponentData<TransportLineData>(entity);
+                if (!IsSmartTransportationSupportedRoute(transportLineData) ||
+                    transportLineData.m_TransportType != transportType)
+                {
+                    continue;
+                }
+
+                var routeData = EntityManager.GetComponentData<RouteData>(entity);
+                UnityColor routeColor = routeData.m_Color;
+                return NormalizeColor(routeColor);
+            }
+
+            return CustomRule.DefaultRouteColor;
+        }
+
+        private static bool RuleAppliesToTransport(CustomRule rule, TransportType transportType)
+        {
+            return rule.transportType == CustomRule.UnspecifiedTransportType ||
+                   rule.transportType == transportType;
+        }
+
+        public bool CustomRuleAppliesToTransport(Colossal.Hash128 ruleId, TransportType transportType)
+        {
+            if (RuleNames.ContainsKey(ruleId))
+            {
+                var builtInTransportType = GetBuiltInRuleTransportType(ruleId);
+                return builtInTransportType == CustomRule.UnspecifiedTransportType ||
+                       builtInTransportType == transportType;
+            }
+
+            return TryGetCustomRuleEntity(ruleId, out _, out var rule) &&
+                   RuleAppliesToTransport(rule, transportType);
+        }
+
         protected override void OnGameLoaded(Context serializationContext)
         {
             base.OnGameLoaded(serializationContext);
@@ -87,6 +247,7 @@ namespace SmartTransportation.Bridge
             RemoveDuplicateCustomRuleEntities();
             SyncDefaultRulesFromSettings();
             ApplyAllCustomRuleColors();
+            ApplyAllCustomRuleVehicleModels();
 
             // This system only needs to run on load.
             firstUpdate = true;
@@ -213,16 +374,38 @@ namespace SmartTransportation.Bridge
 
                 // Check if the rule already exists
                 var (_, existingName, _, _, _, _, _, _) = GetCustomRule(ruleId);
+                var ruleTransportType = GetBuiltInRuleTransportType(ruleId);
+                var defaultRouteColor = GetDefaultRouteColor(ruleTransportType);
                 if (!string.IsNullOrEmpty(existingName))
                 {
+                    GetCustomRuleVehicleSelections(ruleId, out var selectedPrimaryVehicles, out var selectedSecondaryVehicles);
+                    GetCustomRuleCosmeticSettings(ruleId, out var useRouteColor, out var useVehicleModels);
+                    var routeColor = useRouteColor
+                        ? GetCustomRuleColorOrDefault(ruleId)
+                        : defaultRouteColor;
+
                     // Update
-                    SetCustomRule(ruleId, ruleName, occ, ticket, inc, dec, maxAdj, minAdj);
+                    SetCustomRule(
+                        ruleId,
+                        ruleName,
+                        occ,
+                        ticket,
+                        inc,
+                        dec,
+                        maxAdj,
+                        minAdj,
+                        routeColor,
+                        ruleTransportType,
+                        useRouteColor,
+                        useVehicleModels,
+                        selectedPrimaryVehicles,
+                        selectedSecondaryVehicles);
                 }
                 else
                 {
                     // Create
                     Entity entity = EntityManager.CreateEntity(typeof(CustomRule));
-                    var rule = new CustomRule(ruleId, ruleName, occ, ticket, inc, dec, maxAdj, minAdj);
+                    var rule = new CustomRule(ruleId, ruleName, occ, ticket, inc, dec, maxAdj, minAdj, defaultRouteColor, ruleTransportType);
 
                     EntityManager.SetComponentData(entity, rule);
                 }
@@ -282,6 +465,19 @@ namespace SmartTransportation.Bridge
             if (EntityManager.TryGetComponent<RouteRule>(routeEntity, out RouteRule routeRule))
             {
                 ruleId = routeRule.customRule;
+
+                if (!RuleNames.ContainsKey(ruleId) &&
+                    EntityManager.TryGetComponent<PrefabRef>(routeEntity, out var assignedPrefab) &&
+                    EntityManager.HasComponent<TransportLineData>(assignedPrefab.m_Prefab))
+                {
+                    var assignedTransportLineData = EntityManager.GetComponentData<TransportLineData>(assignedPrefab.m_Prefab);
+                    if (TryGetCustomRuleEntity(ruleId, out _, out var assignedRule) &&
+                        !RuleAppliesToTransport(assignedRule, assignedTransportLineData.m_TransportType))
+                    {
+                        EntityManager.RemoveComponent<RouteRule>(routeEntity);
+                        return GetRouteRule(routeEntity);
+                    }
+                }
             }
             else
             {
@@ -385,13 +581,16 @@ namespace SmartTransportation.Bridge
             }
 
             // 2. Add custom rules (excluding built-in ones from RuleNames)
-            var customRules = GetCustomRules();
-            foreach (var (ruleId, ruleName, _, _, _, _, _, _) in customRules)
+            var customRules = GetCustomRuleDetails();
+            foreach (var rule in customRules)
             {
-                if (RuleNames.ContainsKey(ruleId))
+                if (RuleNames.ContainsKey(rule.ruleId))
                     continue; // Skip built-in rule
 
-                result.Add((ruleId, ruleName.ToString()));
+                if (rule.transportType != CustomRule.UnspecifiedTransportType && rule.transportType != transportType)
+                    continue;
+
+                result.Add((rule.ruleId, rule.ruleName));
             }
 
             return result.ToArray();
@@ -400,20 +599,21 @@ namespace SmartTransportation.Bridge
 
         public (Colossal.Hash128 ruleId, string, int, int, int, int, int, int) GetCustomRule(Colossal.Hash128 ruleId)
         {
-            using var query = EntityManager.CreateEntityQuery(typeof(CustomRule));
-            using var rules = query.ToComponentDataArray<CustomRule>(Allocator.Temp);
-
-            foreach (var r in rules)
+            if (TryGetCustomRuleEntity(ruleId, out _, out var rule))
             {
-                if (r.ruleId == ruleId)
-                {
-                    return (r.ruleId, r.ruleName.ToString(), r.occupancy, r.stdTicket, r.maxTicketInc, r.maxTicketDec, r.maxVehAdj, r.minVehAdj);
-                }
+                return (rule.ruleId, rule.ruleName.ToString(), rule.occupancy, rule.stdTicket, rule.maxTicketInc, rule.maxTicketDec, rule.maxVehAdj, rule.minVehAdj);
             }
 
             return default;
         }
 
+        public CustomRuleInfo GetCustomRuleDetails(Colossal.Hash128 ruleId)
+        {
+            if (TryGetCustomRuleEntity(ruleId, out var entity, out var rule))
+                return CreateCustomRuleInfo(entity, rule);
+
+            return default;
+        }
 
         public void SetCustomRule(Colossal.Hash128 ruleId, FixedString64Bytes ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj)
         {
@@ -421,6 +621,94 @@ namespace SmartTransportation.Bridge
         }
 
         public void SetCustomRule(Colossal.Hash128 ruleId, FixedString64Bytes ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj, UnityColor routeColor)
+        {
+            var transportType = GetCustomRuleTransportTypeOrDefault(ruleId);
+            GetCustomRuleVehicleSelections(ruleId, out var selectedPrimaryVehicles, out var selectedSecondaryVehicles);
+            GetCustomRuleCosmeticSettings(ruleId, out var useRouteColor, out var useVehicleModels);
+            SetCustomRule(ruleId, ruleName, occupancy, stdTicket, maxTicketInc, maxTicketDec, maxVehAdj, minVehAdj, routeColor, transportType, useRouteColor, useVehicleModels, selectedPrimaryVehicles, selectedSecondaryVehicles);
+        }
+
+        public void SetCustomRule(
+            Colossal.Hash128 ruleId,
+            FixedString64Bytes ruleName,
+            int occupancy,
+            int stdTicket,
+            int maxTicketInc,
+            int maxTicketDec,
+            int maxVehAdj,
+            int minVehAdj,
+            UnityColor routeColor,
+            string transportType,
+            Entity[] selectedPrimaryVehicles,
+            Entity[] selectedSecondaryVehicles)
+        {
+            GetCustomRuleCosmeticSettings(ruleId, out var useRouteColor, out var useVehicleModels);
+
+            SetCustomRule(
+                ruleId,
+                ruleName,
+                occupancy,
+                stdTicket,
+                maxTicketInc,
+                maxTicketDec,
+                maxVehAdj,
+                minVehAdj,
+                routeColor,
+                ParseRuleTransportType(transportType),
+                useRouteColor,
+                useVehicleModels,
+                selectedPrimaryVehicles,
+                selectedSecondaryVehicles);
+        }
+
+        public void SetCustomRule(
+            Colossal.Hash128 ruleId,
+            FixedString64Bytes ruleName,
+            int occupancy,
+            int stdTicket,
+            int maxTicketInc,
+            int maxTicketDec,
+            int maxVehAdj,
+            int minVehAdj,
+            UnityColor routeColor,
+            string transportType,
+            bool useRouteColor,
+            bool useVehicleModels,
+            Entity[] selectedPrimaryVehicles,
+            Entity[] selectedSecondaryVehicles)
+        {
+            SetCustomRule(
+                ruleId,
+                ruleName,
+                occupancy,
+                stdTicket,
+                maxTicketInc,
+                maxTicketDec,
+                maxVehAdj,
+                minVehAdj,
+                routeColor,
+                ParseRuleTransportType(transportType),
+                useRouteColor,
+                useVehicleModels,
+                selectedPrimaryVehicles,
+                selectedSecondaryVehicles);
+        }
+
+        public void SetCustomRule(
+            Colossal.Hash128 ruleId,
+            FixedString64Bytes ruleName,
+            int occupancy,
+            int stdTicket,
+            int maxTicketInc,
+            int maxTicketDec,
+            int maxVehAdj,
+            int minVehAdj,
+            UnityColor routeColor,
+            TransportType transportType,
+            bool useRouteColor,
+            bool useVehicleModels,
+            Entity[] selectedPrimaryVehicles,
+            Entity[] selectedSecondaryVehicles)
         {
             EntityQuery query = EntityManager.CreateEntityQuery(typeof(CustomRule));
             var entities = query.ToEntityArray(Allocator.Temp);
@@ -432,8 +720,12 @@ namespace SmartTransportation.Bridge
                 {
                     if (rules[i].ruleId == ruleId)
                     {
+                        var isBuiltInRule = RuleNames.TryGetValue(ruleId, out var builtInRuleName);
                         var updated = rules[i];
-                        updated.ruleName = ruleName;
+                        if (isBuiltInRule)
+                            updated.ruleName = builtInRuleName;
+                        else
+                            updated.ruleName = ruleName;
                         updated.occupancy = occupancy;
                         updated.stdTicket = stdTicket;
                         updated.maxTicketInc = maxTicketInc;
@@ -441,9 +733,34 @@ namespace SmartTransportation.Bridge
                         updated.maxVehAdj = maxVehAdj;
                         updated.minVehAdj = minVehAdj;
                         updated.routeColor = NormalizeColor(routeColor);
+                        updated.transportType = isBuiltInRule
+                            ? GetBuiltInRuleTransportType(ruleId)
+                            : NormalizeRuleTransportType(transportType);
+                        updated.useRouteColor = useRouteColor;
+                        updated.useVehicleModels = useVehicleModels &&
+                            updated.transportType != CustomRule.UnspecifiedTransportType;
+
+                        if (isBuiltInRule && updated.transportType != CustomRule.UnspecifiedTransportType)
+                        {
+                            ApplyBuiltInRuleToSettings(
+                                updated.transportType,
+                                occupancy,
+                                stdTicket,
+                                maxTicketInc,
+                                maxTicketDec,
+                                maxVehAdj,
+                                minVehAdj);
+                        }
 
                         EntityManager.SetComponentData(entities[i], updated);
+                        SetRuleVehicleSelections(
+                            entities[i],
+                            updated.transportType,
+                            updated.useVehicleModels ? selectedPrimaryVehicles : Array.Empty<Entity>(),
+                            updated.useVehicleModels ? selectedSecondaryVehicles : Array.Empty<Entity>());
+                        RemoveRuleFromIncompatibleRoutes(ruleId, updated.transportType);
                         ApplyRuleColorToRoutes(ruleId, updated.routeColor);
+                        ApplyRuleVehicleModelsToRoutes(ruleId);
 
                         return;
                     }
@@ -455,6 +772,133 @@ namespace SmartTransportation.Bridge
                 entities.Dispose();
                 rules.Dispose();
             }
+        }
+
+        private static void ApplyBuiltInRuleToSettings(
+            TransportType transportType,
+            int occupancy,
+            int stdTicket,
+            int maxTicketInc,
+            int maxTicketDec,
+            int maxVehAdj,
+            int minVehAdj)
+        {
+            if (Mod.m_Setting == null)
+                return;
+
+            var changed = false;
+
+            switch (transportType)
+            {
+                case TransportType.Bus:
+                    changed =
+                        Mod.m_Setting.target_occupancy_bus != occupancy ||
+                        Mod.m_Setting.standard_ticket_bus != stdTicket ||
+                        Mod.m_Setting.max_ticket_increase_bus != maxTicketInc ||
+                        Mod.m_Setting.max_ticket_discount_bus != maxTicketDec ||
+                        Mod.m_Setting.max_vahicles_adj_bus != maxVehAdj ||
+                        Mod.m_Setting.min_vahicles_adj_bus != minVehAdj;
+                    Mod.m_Setting.target_occupancy_bus = occupancy;
+                    Mod.m_Setting.standard_ticket_bus = stdTicket;
+                    Mod.m_Setting.max_ticket_increase_bus = maxTicketInc;
+                    Mod.m_Setting.max_ticket_discount_bus = maxTicketDec;
+                    Mod.m_Setting.max_vahicles_adj_bus = maxVehAdj;
+                    Mod.m_Setting.min_vahicles_adj_bus = minVehAdj;
+                    break;
+                case TransportType.Tram:
+                    changed =
+                        Mod.m_Setting.target_occupancy_Tram != occupancy ||
+                        Mod.m_Setting.standard_ticket_Tram != stdTicket ||
+                        Mod.m_Setting.max_ticket_increase_Tram != maxTicketInc ||
+                        Mod.m_Setting.max_ticket_discount_Tram != maxTicketDec ||
+                        Mod.m_Setting.max_vahicles_adj_Tram != maxVehAdj ||
+                        Mod.m_Setting.min_vahicles_adj_Tram != minVehAdj;
+                    Mod.m_Setting.target_occupancy_Tram = occupancy;
+                    Mod.m_Setting.standard_ticket_Tram = stdTicket;
+                    Mod.m_Setting.max_ticket_increase_Tram = maxTicketInc;
+                    Mod.m_Setting.max_ticket_discount_Tram = maxTicketDec;
+                    Mod.m_Setting.max_vahicles_adj_Tram = maxVehAdj;
+                    Mod.m_Setting.min_vahicles_adj_Tram = minVehAdj;
+                    break;
+                case TransportType.Subway:
+                    changed =
+                        Mod.m_Setting.target_occupancy_Subway != occupancy ||
+                        Mod.m_Setting.standard_ticket_Subway != stdTicket ||
+                        Mod.m_Setting.max_ticket_increase_Subway != maxTicketInc ||
+                        Mod.m_Setting.max_ticket_discount_Subway != maxTicketDec ||
+                        Mod.m_Setting.max_vahicles_adj_Subway != maxVehAdj ||
+                        Mod.m_Setting.min_vahicles_adj_Subway != minVehAdj;
+                    Mod.m_Setting.target_occupancy_Subway = occupancy;
+                    Mod.m_Setting.standard_ticket_Subway = stdTicket;
+                    Mod.m_Setting.max_ticket_increase_Subway = maxTicketInc;
+                    Mod.m_Setting.max_ticket_discount_Subway = maxTicketDec;
+                    Mod.m_Setting.max_vahicles_adj_Subway = maxVehAdj;
+                    Mod.m_Setting.min_vahicles_adj_Subway = minVehAdj;
+                    break;
+                case TransportType.Train:
+                    changed =
+                        Mod.m_Setting.target_occupancy_Train != occupancy ||
+                        Mod.m_Setting.standard_ticket_Train != stdTicket ||
+                        Mod.m_Setting.max_ticket_increase_Train != maxTicketInc ||
+                        Mod.m_Setting.max_ticket_discount_Train != maxTicketDec ||
+                        Mod.m_Setting.max_vahicles_adj_Train != maxVehAdj ||
+                        Mod.m_Setting.min_vahicles_adj_Train != minVehAdj;
+                    Mod.m_Setting.target_occupancy_Train = occupancy;
+                    Mod.m_Setting.standard_ticket_Train = stdTicket;
+                    Mod.m_Setting.max_ticket_increase_Train = maxTicketInc;
+                    Mod.m_Setting.max_ticket_discount_Train = maxTicketDec;
+                    Mod.m_Setting.max_vahicles_adj_Train = maxVehAdj;
+                    Mod.m_Setting.min_vahicles_adj_Train = minVehAdj;
+                    break;
+                case TransportType.Ship:
+                    changed =
+                        Mod.m_Setting.target_occupancy_Ship != occupancy ||
+                        Mod.m_Setting.standard_ticket_Ship != stdTicket ||
+                        Mod.m_Setting.max_ticket_increase_Ship != maxTicketInc ||
+                        Mod.m_Setting.max_ticket_discount_Ship != maxTicketDec ||
+                        Mod.m_Setting.max_vahicles_adj_Ship != maxVehAdj ||
+                        Mod.m_Setting.min_vahicles_adj_Ship != minVehAdj;
+                    Mod.m_Setting.target_occupancy_Ship = occupancy;
+                    Mod.m_Setting.standard_ticket_Ship = stdTicket;
+                    Mod.m_Setting.max_ticket_increase_Ship = maxTicketInc;
+                    Mod.m_Setting.max_ticket_discount_Ship = maxTicketDec;
+                    Mod.m_Setting.max_vahicles_adj_Ship = maxVehAdj;
+                    Mod.m_Setting.min_vahicles_adj_Ship = minVehAdj;
+                    break;
+                case TransportType.Airplane:
+                    changed =
+                        Mod.m_Setting.target_occupancy_Airplane != occupancy ||
+                        Mod.m_Setting.standard_ticket_Airplane != stdTicket ||
+                        Mod.m_Setting.max_ticket_increase_Airplane != maxTicketInc ||
+                        Mod.m_Setting.max_ticket_discount_Airplane != maxTicketDec ||
+                        Mod.m_Setting.max_vahicles_adj_Airplane != maxVehAdj ||
+                        Mod.m_Setting.min_vahicles_adj_Airplane != minVehAdj;
+                    Mod.m_Setting.target_occupancy_Airplane = occupancy;
+                    Mod.m_Setting.standard_ticket_Airplane = stdTicket;
+                    Mod.m_Setting.max_ticket_increase_Airplane = maxTicketInc;
+                    Mod.m_Setting.max_ticket_discount_Airplane = maxTicketDec;
+                    Mod.m_Setting.max_vahicles_adj_Airplane = maxVehAdj;
+                    Mod.m_Setting.min_vahicles_adj_Airplane = minVehAdj;
+                    break;
+                case TransportType.Ferry:
+                    changed =
+                        Mod.m_Setting.target_occupancy_Ferry != occupancy ||
+                        Mod.m_Setting.standard_ticket_Ferry != stdTicket ||
+                        Mod.m_Setting.max_ticket_increase_Ferry != maxTicketInc ||
+                        Mod.m_Setting.max_ticket_discount_Ferry != maxTicketDec ||
+                        Mod.m_Setting.max_vahicles_adj_Ferry != maxVehAdj ||
+                        Mod.m_Setting.min_vahicles_adj_Ferry != minVehAdj;
+                    Mod.m_Setting.target_occupancy_Ferry = occupancy;
+                    Mod.m_Setting.standard_ticket_Ferry = stdTicket;
+                    Mod.m_Setting.max_ticket_increase_Ferry = maxTicketInc;
+                    Mod.m_Setting.max_ticket_discount_Ferry = maxTicketDec;
+                    Mod.m_Setting.max_vahicles_adj_Ferry = maxVehAdj;
+                    Mod.m_Setting.min_vahicles_adj_Ferry = minVehAdj;
+                    break;
+            }
+
+            if (changed)
+                _ = AssetDatabase.global.SaveSettings();
         }
 
 
@@ -498,21 +942,15 @@ namespace SmartTransportation.Bridge
 
         public (Colossal.Hash128, string, int, int, int, int, int, int)[] GetCustomRules()
         {
-            // Dispose the query after use (or cache it in OnCreate and reuse).
-            using var query = EntityManager.CreateEntityQuery(ComponentType.ReadOnly<CustomRule>());
-
-            // This returns a NativeArray<CustomRule>; it must be disposed.
-            using var rules = query.ToComponentDataArray<CustomRule>(Allocator.Temp);
-
+            var rules = GetCustomRuleDetails();
             var result = new (Colossal.Hash128, string, int, int, int, int, int, int)[rules.Length];
 
-            // Fill a managed array, then return it (after the NativeArray is disposed).
             for (int i = 0; i < rules.Length; i++)
             {
                 var r = rules[i];
                 result[i] = (
                     r.ruleId,
-                    r.ruleName.ToString(), // copy FixedString to managed string
+                    r.ruleName,
                     r.occupancy,
                     r.stdTicket,
                     r.maxTicketInc,
@@ -527,9 +965,7 @@ namespace SmartTransportation.Bridge
 
         public (Colossal.Hash128 ruleId, string ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj, UnityColor routeColor)[] GetCustomRulesWithColor()
         {
-            using var query = EntityManager.CreateEntityQuery(ComponentType.ReadOnly<CustomRule>());
-            using var rules = query.ToComponentDataArray<CustomRule>(Allocator.Temp);
-
+            var rules = GetCustomRuleDetails();
             var result = new (Colossal.Hash128, string, int, int, int, int, int, int, UnityColor)[rules.Length];
 
             for (int i = 0; i < rules.Length; i++)
@@ -537,18 +973,239 @@ namespace SmartTransportation.Bridge
                 var r = rules[i];
                 result[i] = (
                     r.ruleId,
-                    r.ruleName.ToString(),
+                    r.ruleName,
                     r.occupancy,
                     r.stdTicket,
                     r.maxTicketInc,
                     r.maxTicketDec,
                     r.maxVehAdj,
                     r.minVehAdj,
-                    NormalizeColor(r.routeColor)
+                    r.routeColor
                 );
             }
 
             return result;
+        }
+
+        public CustomRuleInfo[] GetCustomRuleDetails()
+        {
+            using var query = EntityManager.CreateEntityQuery(ComponentType.ReadOnly<CustomRule>());
+            using var entities = query.ToEntityArray(Allocator.Temp);
+            using var rules = query.ToComponentDataArray<CustomRule>(Allocator.Temp);
+
+            var result = new CustomRuleInfo[rules.Length];
+
+            for (int i = 0; i < rules.Length; i++)
+            {
+                result[i] = CreateCustomRuleInfo(entities[i], rules[i]);
+            }
+
+            return result;
+        }
+
+        public TransportVehicleOptions[] GetTransportVehicleOptions()
+        {
+            using var vehicleEntities = transportVehiclePrefabQuery.ToEntityArray(Allocator.Temp);
+            using var transportVehicleData = transportVehiclePrefabQuery.ToComponentDataArray<PublicTransportVehicleData>(Allocator.Temp);
+
+            var result = new List<TransportVehicleOptions>();
+
+            foreach (var transportType in SupportedTransportTypes)
+            {
+                var primary = new List<VehiclePrefabInfo>();
+                var secondary = new List<VehiclePrefabInfo>();
+
+                for (int i = 0; i < vehicleEntities.Length; i++)
+                {
+                    var vehicleData = transportVehicleData[i];
+                    if (vehicleData.m_TransportType != transportType ||
+                        (vehicleData.m_PurposeMask & PublicTransportPurpose.TransportLine) == 0)
+                    {
+                        continue;
+                    }
+
+                    var vehicle = CreateVehiclePrefabInfo(vehicleEntities[i]);
+                    if (IsSecondaryVehiclePrefab(vehicleEntities[i]))
+                        secondary.Add(vehicle);
+                    else
+                        primary.Add(vehicle);
+                }
+
+                primary.Sort((a, b) => string.Compare(a.id, b.id, StringComparison.OrdinalIgnoreCase));
+                secondary.Sort((a, b) => string.Compare(a.id, b.id, StringComparison.OrdinalIgnoreCase));
+
+                result.Add(new TransportVehicleOptions
+                {
+                    transportType = transportType.ToString(),
+                    availablePrimaryVehicles = primary.ToArray(),
+                    availableSecondaryVehicles = secondary.ToArray()
+                });
+            }
+
+            return result.ToArray();
+        }
+
+        private VehiclePrefabInfo CreateVehiclePrefabInfo(Entity vehicleEntity)
+        {
+            var thumbnail = m_ImageSystem?.GetThumbnail(vehicleEntity);
+            if (string.IsNullOrWhiteSpace(thumbnail) && m_ImageSystem != null)
+                thumbnail = m_ImageSystem.placeholderIcon;
+
+            return new VehiclePrefabInfo
+            {
+                entity = vehicleEntity,
+                id = m_PrefabSystem?.GetPrefabName(vehicleEntity) ?? vehicleEntity.ToString(),
+                locked = EntityManager.HasComponent<Locked>(vehicleEntity),
+                multiunit = EntityManager.HasComponent<MultipleUnitTrainData>(vehicleEntity),
+                thumbnail = thumbnail ?? string.Empty
+            };
+        }
+
+        private bool IsSecondaryVehiclePrefab(Entity vehicleEntity)
+        {
+            return EntityManager.HasComponent<TrainCarriageData>(vehicleEntity) &&
+                   !EntityManager.HasComponent<TrainEngineData>(vehicleEntity) &&
+                   !EntityManager.HasComponent<MultipleUnitTrainData>(vehicleEntity);
+        }
+
+        private bool TryGetCustomRuleEntity(Colossal.Hash128 ruleId, out Entity entity, out CustomRule rule)
+        {
+            using var query = EntityManager.CreateEntityQuery(ComponentType.ReadOnly<CustomRule>());
+            using var entities = query.ToEntityArray(Allocator.Temp);
+            using var rules = query.ToComponentDataArray<CustomRule>(Allocator.Temp);
+
+            for (int i = 0; i < rules.Length; i++)
+            {
+                if (rules[i].ruleId == ruleId)
+                {
+                    entity = entities[i];
+                    rule = rules[i];
+                    return true;
+                }
+            }
+
+            entity = Entity.Null;
+            rule = default;
+            return false;
+        }
+
+        private CustomRuleInfo CreateCustomRuleInfo(Entity entity, CustomRule rule)
+        {
+            GetRuleVehicleSelections(entity, out var selectedPrimaryVehicles, out var selectedSecondaryVehicles);
+
+            return new CustomRuleInfo
+            {
+                ruleId = rule.ruleId,
+                ruleName = rule.ruleName.ToString(),
+                occupancy = rule.occupancy,
+                stdTicket = rule.stdTicket,
+                maxTicketInc = rule.maxTicketInc,
+                maxTicketDec = rule.maxTicketDec,
+                maxVehAdj = rule.maxVehAdj,
+                minVehAdj = rule.minVehAdj,
+                routeColor = NormalizeColor(rule.routeColor),
+                useRouteColor = rule.useRouteColor,
+                transportType = RuleNames.ContainsKey(rule.ruleId)
+                    ? GetBuiltInRuleTransportType(rule.ruleId)
+                    : NormalizeRuleTransportType(rule.transportType),
+                useVehicleModels = rule.useVehicleModels,
+                selectedPrimaryVehicles = selectedPrimaryVehicles,
+                selectedSecondaryVehicles = selectedSecondaryVehicles
+            };
+        }
+
+        private TransportType GetCustomRuleTransportTypeOrDefault(Colossal.Hash128 ruleId)
+        {
+            if (RuleNames.ContainsKey(ruleId))
+                return GetBuiltInRuleTransportType(ruleId);
+
+            return TryGetCustomRuleEntity(ruleId, out _, out var rule)
+                ? NormalizeRuleTransportType(rule.transportType)
+                : CustomRule.UnspecifiedTransportType;
+        }
+
+        private void GetCustomRuleCosmeticSettings(Colossal.Hash128 ruleId, out bool useRouteColor, out bool useVehicleModels)
+        {
+            if (TryGetCustomRuleEntity(ruleId, out _, out var rule))
+            {
+                useRouteColor = rule.useRouteColor;
+                useVehicleModels = rule.useVehicleModels;
+                return;
+            }
+
+            useRouteColor = false;
+            useVehicleModels = false;
+        }
+
+        private void GetCustomRuleVehicleSelections(Colossal.Hash128 ruleId, out Entity[] selectedPrimaryVehicles, out Entity[] selectedSecondaryVehicles)
+        {
+            if (TryGetCustomRuleEntity(ruleId, out var entity, out _))
+            {
+                GetRuleVehicleSelections(entity, out selectedPrimaryVehicles, out selectedSecondaryVehicles);
+                return;
+            }
+
+            selectedPrimaryVehicles = Array.Empty<Entity>();
+            selectedSecondaryVehicles = Array.Empty<Entity>();
+        }
+
+        private void GetRuleVehicleSelections(Entity ruleEntity, out Entity[] selectedPrimaryVehicles, out Entity[] selectedSecondaryVehicles)
+        {
+            if (ruleEntity == Entity.Null || !EntityManager.HasBuffer<VehicleModel>(ruleEntity))
+            {
+                selectedPrimaryVehicles = Array.Empty<Entity>();
+                selectedSecondaryVehicles = Array.Empty<Entity>();
+                return;
+            }
+
+            var primary = new List<Entity>();
+            var secondary = new List<Entity>();
+            var vehicleModels = EntityManager.GetBuffer<VehicleModel>(ruleEntity, true);
+
+            foreach (var vehicleModel in vehicleModels)
+            {
+                if (vehicleModel.m_PrimaryPrefab != Entity.Null)
+                    primary.Add(vehicleModel.m_PrimaryPrefab);
+
+                if (vehicleModel.m_SecondaryPrefab != Entity.Null)
+                    secondary.Add(vehicleModel.m_SecondaryPrefab);
+            }
+
+            selectedPrimaryVehicles = primary.ToArray();
+            selectedSecondaryVehicles = secondary.ToArray();
+        }
+
+        private void SetRuleVehicleSelections(Entity ruleEntity, TransportType transportType, Entity[] selectedPrimaryVehicles, Entity[] selectedSecondaryVehicles)
+        {
+            if (!EntityManager.HasBuffer<VehicleModel>(ruleEntity))
+                EntityManager.AddBuffer<VehicleModel>(ruleEntity);
+
+            var vehicleModels = EntityManager.GetBuffer<VehicleModel>(ruleEntity);
+            vehicleModels.Clear();
+
+            if (transportType == CustomRule.UnspecifiedTransportType)
+                return;
+
+            AddVehicleSelections(vehicleModels, selectedPrimaryVehicles, primary: true);
+            AddVehicleSelections(vehicleModels, selectedSecondaryVehicles, primary: false);
+        }
+
+        private static void AddVehicleSelections(DynamicBuffer<VehicleModel> vehicleModels, Entity[] selectedVehicles, bool primary)
+        {
+            if (selectedVehicles == null)
+                return;
+
+            foreach (var vehicle in selectedVehicles)
+            {
+                if (vehicle == Entity.Null)
+                    continue;
+
+                vehicleModels.Add(new VehicleModel
+                {
+                    m_PrimaryPrefab = primary ? vehicle : Entity.Null,
+                    m_SecondaryPrefab = primary ? Entity.Null : vehicle
+                });
+            }
         }
 
         private UnityColor GetCustomRuleColorOrDefault(Colossal.Hash128 ruleId)
@@ -591,26 +1248,192 @@ namespace SmartTransportation.Bridge
             }
         }
 
-        private void ApplyRuleColorToRouteIfCustom(Entity routeEntity, Colossal.Hash128 ruleId)
+        private void ApplyAllCustomRuleVehicleModels()
+        {
+            foreach (var rule in GetCustomRuleDetails())
+            {
+                RemoveRuleFromIncompatibleRoutes(rule.ruleId, rule.transportType);
+                ApplyRuleVehicleModelsToRoutes(rule.ruleId);
+            }
+        }
+
+        private static bool IsDisabledRule(Colossal.Hash128 ruleId)
+        {
+            return ruleId == new Colossal.Hash128((uint)disabled_int_id, 0, 0, 0);
+        }
+
+        private bool TryGetRouteTransportType(Entity routeEntity, out TransportType transportType)
+        {
+            transportType = CustomRule.UnspecifiedTransportType;
+
+            if (!EntityManager.TryGetComponent<PrefabRef>(routeEntity, out var prefabRef) ||
+                !EntityManager.HasComponent<TransportLineData>(prefabRef.m_Prefab))
+            {
+                return false;
+            }
+
+            var transportLineData = EntityManager.GetComponentData<TransportLineData>(prefabRef.m_Prefab);
+            if (!IsSmartTransportationSupportedRoute(transportLineData))
+                return false;
+
+            transportType = transportLineData.m_TransportType;
+            return true;
+        }
+
+        private bool RouteUsesRuleForCosmetics(Entity routeEntity, Colossal.Hash128 ruleId, TransportType ruleTransportType)
         {
             if (RuleNames.ContainsKey(ruleId))
+            {
+                if (ruleTransportType == CustomRule.UnspecifiedTransportType ||
+                    !TryGetRouteTransportType(routeEntity, out var routeTransportType) ||
+                    routeTransportType != ruleTransportType)
+                {
+                    return false;
+                }
+
+                return !EntityManager.TryGetComponent<RouteRule>(routeEntity, out var routeRule) ||
+                       routeRule.customRule == ruleId;
+            }
+
+            if (!EntityManager.TryGetComponent<RouteRule>(routeEntity, out var assignedRule) ||
+                assignedRule.customRule != ruleId)
+            {
+                return false;
+            }
+
+            return ruleTransportType == CustomRule.UnspecifiedTransportType ||
+                   (TryGetRouteTransportType(routeEntity, out var assignedTransportType) &&
+                    assignedTransportType == ruleTransportType);
+        }
+
+        private void ApplyRuleColorToRouteIfConfigured(Entity routeEntity, Colossal.Hash128 ruleId)
+        {
+            if (IsDisabledRule(ruleId))
                 return;
 
-            if (TryGetCustomRuleColor(ruleId, out var routeColor))
-                ApplyRouteColor(routeEntity, routeColor);
+            if (!TryGetCustomRuleEntity(ruleId, out _, out var rule) || !rule.useRouteColor)
+                return;
+
+            ApplyRouteColor(routeEntity, rule.routeColor);
         }
 
         private void ApplyRuleColorToRoutes(Colossal.Hash128 ruleId, UnityColor routeColor)
         {
-            if (RuleNames.ContainsKey(ruleId))
+            if (IsDisabledRule(ruleId) || !TryGetCustomRuleEntity(ruleId, out _, out var rule))
+                return;
+
+            if (!rule.useRouteColor)
+                return;
+
+            var ruleTransportType = RuleNames.ContainsKey(ruleId)
+                ? GetBuiltInRuleTransportType(ruleId)
+                : NormalizeRuleTransportType(rule.transportType);
+
+            using var entities = entityQuery.ToEntityArray(Allocator.Temp);
+
+            foreach (var ent in entities)
+            {
+                if (RouteUsesRuleForCosmetics(ent, ruleId, ruleTransportType))
+                    ApplyRouteColor(ent, routeColor);
+            }
+        }
+
+        private void RemoveRuleFromIncompatibleRoutes(Colossal.Hash128 ruleId, TransportType ruleTransportType)
+        {
+            if (ruleTransportType == CustomRule.UnspecifiedTransportType)
                 return;
 
             using var entities = entityQuery.ToEntityArray(Allocator.Temp);
 
             foreach (var ent in entities)
             {
-                if (EntityManager.TryGetComponent<RouteRule>(ent, out var routeRule) && routeRule.customRule == ruleId)
-                    ApplyRouteColor(ent, routeColor);
+                if (!EntityManager.TryGetComponent<RouteRule>(ent, out var routeRule) || routeRule.customRule != ruleId)
+                    continue;
+
+                if (!EntityManager.TryGetComponent<PrefabRef>(ent, out var prefabRef) ||
+                    !EntityManager.HasComponent<TransportLineData>(prefabRef.m_Prefab))
+                    continue;
+
+                var transportLineData = EntityManager.GetComponentData<TransportLineData>(prefabRef.m_Prefab);
+                if (transportLineData.m_TransportType != ruleTransportType)
+                    EntityManager.RemoveComponent<RouteRule>(ent);
+            }
+        }
+
+        private void ApplyRuleVehicleModelsToRoutes(Colossal.Hash128 ruleId)
+        {
+            if (IsDisabledRule(ruleId))
+                return;
+
+            if (!TryGetCustomRuleEntity(ruleId, out var ruleEntity, out var rule) ||
+                !rule.useVehicleModels ||
+                !EntityManager.HasBuffer<VehicleModel>(ruleEntity))
+            {
+                return;
+            }
+
+            var ruleTransportType = RuleNames.ContainsKey(ruleId)
+                ? GetBuiltInRuleTransportType(ruleId)
+                : NormalizeRuleTransportType(rule.transportType);
+
+            if (ruleTransportType == CustomRule.UnspecifiedTransportType)
+                return;
+
+            var ruleVehicleModels = EntityManager.GetBuffer<VehicleModel>(ruleEntity, true);
+            if (ruleVehicleModels.Length == 0)
+                return;
+
+            using var entities = entityQuery.ToEntityArray(Allocator.Temp);
+
+            foreach (var ent in entities)
+            {
+                if (RouteUsesRuleForCosmetics(ent, ruleId, ruleTransportType))
+                    ApplyVehicleModelsToRoute(ent, ruleVehicleModels);
+            }
+        }
+
+        private void ApplyRuleVehicleModelsToRouteIfConfigured(Entity routeEntity, Colossal.Hash128 ruleId)
+        {
+            if (IsDisabledRule(ruleId))
+                return;
+
+            if (!TryGetCustomRuleEntity(ruleId, out var ruleEntity, out var rule) ||
+                !rule.useVehicleModels ||
+                !EntityManager.HasBuffer<VehicleModel>(ruleEntity))
+            {
+                return;
+            }
+
+            var ruleTransportType = RuleNames.ContainsKey(ruleId)
+                ? GetBuiltInRuleTransportType(ruleId)
+                : NormalizeRuleTransportType(rule.transportType);
+
+            if (ruleTransportType == CustomRule.UnspecifiedTransportType ||
+                !TryGetRouteTransportType(routeEntity, out var routeTransportType) ||
+                routeTransportType != ruleTransportType)
+            {
+                return;
+            }
+
+            var ruleVehicleModels = EntityManager.GetBuffer<VehicleModel>(ruleEntity, true);
+            if (ruleVehicleModels.Length > 0)
+                ApplyVehicleModelsToRoute(routeEntity, ruleVehicleModels);
+        }
+
+        private void ApplyVehicleModelsToRoute(Entity routeEntity, DynamicBuffer<VehicleModel> sourceVehicleModels)
+        {
+            if (!EntityManager.HasBuffer<VehicleModel>(routeEntity))
+                EntityManager.AddBuffer<VehicleModel>(routeEntity);
+
+            var targetVehicleModels = EntityManager.GetBuffer<VehicleModel>(routeEntity);
+            targetVehicleModels.Clear();
+
+            foreach (var vehicleModel in sourceVehicleModels)
+            {
+                if (vehicleModel.m_PrimaryPrefab == Entity.Null && vehicleModel.m_SecondaryPrefab == Entity.Null)
+                    continue;
+
+                targetVehicleModels.Add(vehicleModel);
             }
         }
 
@@ -699,18 +1522,36 @@ namespace SmartTransportation.Bridge
                         // No rule means clear override.
                         if (EntityManager.HasComponent<RouteRule>(ent))
                             EntityManager.RemoveComponent<RouteRule>(ent);
+
+                        ApplyRuleColorToRouteIfConfigured(ent, defaultRuleId);
+                        ApplyRuleVehicleModelsToRouteIfConfigured(ent, defaultRuleId);
                     }
                     else if (ruleIdOrNull.Value.Equals(defaultRuleId))
                     {
                         // Reverting to the original Bus/Tram/etc. rule should restore vanilla/default behavior.
                         if (EntityManager.HasComponent<RouteRule>(ent))
                             EntityManager.RemoveComponent<RouteRule>(ent);
+
+                        ApplyRuleColorToRouteIfConfigured(ent, defaultRuleId);
+                        ApplyRuleVehicleModelsToRouteIfConfigured(ent, defaultRuleId);
                     }
                     else
                     {
                         // Custom rule, Disabled rule, or other explicit override.
-                        SetRouteRule(ent, ruleIdOrNull.Value);
-                        ApplyRuleColorToRouteIfCustom(ent, ruleIdOrNull.Value);
+                        var selectedRuleId = ruleIdOrNull.Value;
+                        if (!RuleNames.ContainsKey(selectedRuleId) &&
+                            (!TryGetCustomRuleEntity(selectedRuleId, out _, out var selectedRule) ||
+                             !RuleAppliesToTransport(selectedRule, tld.m_TransportType)))
+                        {
+                            if (EntityManager.HasComponent<RouteRule>(ent))
+                                EntityManager.RemoveComponent<RouteRule>(ent);
+                        }
+                        else
+                        {
+                            SetRouteRule(ent, selectedRuleId);
+                            ApplyRuleColorToRouteIfConfigured(ent, selectedRuleId);
+                            ApplyRuleVehicleModelsToRouteIfConfigured(ent, selectedRuleId);
+                        }
                     }
 
                     break;

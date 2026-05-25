@@ -1,5 +1,6 @@
 ﻿using Colossal.Serialization.Entities;
 using Game.Agents;
+using Game.Prefabs;
 using SmartTransportation.Bridge;
 using System;
 using System.Collections.Generic;
@@ -14,8 +15,9 @@ namespace SmartTransportation.Components
 {
     public struct CustomRule : IComponentData, IQueryTypeParameter, ISerializable
     {
-        public const int CurrentVersion = 2;
+        public const int CurrentVersion = 4;
         public static readonly Color DefaultRouteColor = new Color(0.0f, 0.54f, 0.85f, 1f);
+        public const TransportType UnspecifiedTransportType = TransportType.None;
 
         public int version = CurrentVersion;
         private Colossal.Hash128 _ruleId; // Changed to a private field
@@ -28,13 +30,21 @@ namespace SmartTransportation.Components
         public int maxVehAdj;
         public int minVehAdj;
         public Color routeColor;
+        public TransportType transportType;
+        public bool useRouteColor;
+        public bool useVehicleModels;
 
         public CustomRule(FixedString64Bytes ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj)
-            : this(ruleName, occupancy, stdTicket, maxTicketInc, maxTicketDec, maxVehAdj, minVehAdj, DefaultRouteColor)
+            : this(ruleName, occupancy, stdTicket, maxTicketInc, maxTicketDec, maxVehAdj, minVehAdj, DefaultRouteColor, UnspecifiedTransportType)
         {
         }
 
         public CustomRule(FixedString64Bytes ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj, Color routeColor)
+            : this(ruleName, occupancy, stdTicket, maxTicketInc, maxTicketDec, maxVehAdj, minVehAdj, routeColor, UnspecifiedTransportType)
+        {
+        }
+
+        public CustomRule(FixedString64Bytes ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj, Color routeColor, TransportType transportType)
         {
             Colossal.Hash128 ruleId;
             do
@@ -51,14 +61,22 @@ namespace SmartTransportation.Components
             this.maxVehAdj = maxVehAdj;
             this.minVehAdj = minVehAdj;
             this.routeColor = routeColor;
+            this.transportType = transportType;
+            this.useRouteColor = false;
+            this.useVehicleModels = false;
         }
 
         public CustomRule(Colossal.Hash128 ruleId, FixedString64Bytes ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj)
-            : this(ruleId, ruleName, occupancy, stdTicket, maxTicketInc, maxTicketDec, maxVehAdj, minVehAdj, DefaultRouteColor)
+            : this(ruleId, ruleName, occupancy, stdTicket, maxTicketInc, maxTicketDec, maxVehAdj, minVehAdj, DefaultRouteColor, UnspecifiedTransportType)
         {
         }
 
         public CustomRule(Colossal.Hash128 ruleId, FixedString64Bytes ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj, Color routeColor)
+            : this(ruleId, ruleName, occupancy, stdTicket, maxTicketInc, maxTicketDec, maxVehAdj, minVehAdj, routeColor, UnspecifiedTransportType)
+        {
+        }
+
+        public CustomRule(Colossal.Hash128 ruleId, FixedString64Bytes ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj, Color routeColor, TransportType transportType)
         {
             version = CurrentVersion;
             this._ruleId = ruleId;
@@ -70,6 +88,9 @@ namespace SmartTransportation.Components
             this.maxVehAdj = maxVehAdj;
             this.minVehAdj = minVehAdj;
             this.routeColor = routeColor;
+            this.transportType = transportType;
+            this.useRouteColor = false;
+            this.useVehicleModels = false;
         }
 
         public void Serialize<TWriter>(TWriter writer) where TWriter : IWriter
@@ -87,6 +108,9 @@ namespace SmartTransportation.Components
             writer.Write(routeColor.g);
             writer.Write(routeColor.b);
             writer.Write(routeColor.a);
+            writer.Write((int)transportType);
+            writer.Write(useRouteColor);
+            writer.Write(useVehicleModels);
         }
 
         public void Deserialize<TReader>(TReader reader) where TReader : IReader
@@ -112,6 +136,29 @@ namespace SmartTransportation.Components
             else
             {
                 routeColor = DefaultRouteColor;
+            }
+
+            if (version >= 3)
+            {
+                reader.Read(out int transportTypeValue);
+                transportType = Enum.IsDefined(typeof(TransportType), transportTypeValue)
+                    ? (TransportType)transportTypeValue
+                    : UnspecifiedTransportType;
+            }
+            else
+            {
+                transportType = UnspecifiedTransportType;
+            }
+
+            if (version >= 4)
+            {
+                reader.Read(out useRouteColor);
+                reader.Read(out useVehicleModels);
+            }
+            else
+            {
+                useRouteColor = false;
+                useVehicleModels = false;
             }
         }
     }

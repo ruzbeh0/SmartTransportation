@@ -36,6 +36,9 @@ const toCssColor = (color: CustomRule["routeColor"] | undefined) => {
 	return `rgba(${Math.round(safe.r * 255)}, ${Math.round(safe.g * 255)}, ${Math.round(safe.b * 255)}, ${safe.a})`;
 };
 
+const formatTransportType = (transportType: string | undefined) =>
+	!transportType || transportType === "NotSpecified" ? "Not Specified" : transportType;
+
 
 interface CustomRulesPanelProps {
 	onClose: () => void;
@@ -107,25 +110,22 @@ const CustomRulesPanel: React.FC<CustomRulesPanelProps> = ({ onClose, onEditRule
 												key={ruleConfig.ruleId}
 												className={styles.definedHeightRuleName}
 											>
+												<Button
+													className={roundButtonHighlightStyle.button}
+													variant="icon"
+													onClick={() => onEditRule?.(ruleConfig)}
+												>
+													<Icon src={editSrc} tinted />
+												</Button>
 												{!isBuiltIn && (
-													<>
-														<Button
-															className={roundButtonHighlightStyle.button}
-															variant="icon"
-															onClick={() => onEditRule?.(ruleConfig)}
-														>
-															<Icon src={editSrc} tinted />
-														</Button>
-														<Button
-															className={roundButtonHighlightStyle.button}
-															variant="icon"
-															onClick={() => deleteCustomRule(ruleConfig.ruleId)}
-														>
-															<Icon src={deleteSrc} tinted />
-														</Button>
-													</>
+													<Button
+														className={roundButtonHighlightStyle.button}
+														variant="icon"
+														onClick={() => deleteCustomRule(ruleConfig.ruleId)}
+													>
+														<Icon src={deleteSrc} tinted />
+													</Button>
 												)}
-												{/* For built-in rules we just render an empty cell */}
 											</div>
 										);
 									})}
@@ -168,14 +168,12 @@ const CustomRulesPanel: React.FC<CustomRulesPanelProps> = ({ onClose, onEditRule
 										)}
 									</div>
 									{displayRules.map((ruleConfig: CustomRule) => {
-										const isBuiltIn = builtInRuleNames.has(ruleConfig.ruleName);
-
 										return (
 											<div
 												key={`${ruleConfig.ruleId}-color`}
 												className={styles.definedHeight}
 											>
-												{!isBuiltIn && (
+												{ruleConfig.useRouteColor && (
 													<div
 														className={styles.colorSwatch}
 														style={{ backgroundColor: toCssColor(ruleConfig.routeColor) }}
@@ -184,6 +182,27 @@ const CustomRulesPanel: React.FC<CustomRulesPanelProps> = ({ onClose, onEditRule
 											</div>
 										);
 									})}
+								</div>
+								<div
+									className={classNames(
+										styles.columnGroup,
+										styles.leftColumn
+									)}
+								>
+									<div className={styles.subtitleRow}>
+										{translate(
+											"SmartTransportation.CustomRules[TransportType]",
+											"Transport type"
+										)}
+									</div>
+									{displayRules.map((ruleConfig: CustomRule) => (
+										<div
+											key={`${ruleConfig.ruleId}-transport`}
+											className={styles.definedHeight}
+										>
+											{formatTransportType(ruleConfig.transportType)}
+										</div>
+									))}
 								</div>
 								<div
 									className={classNames(

@@ -1,7 +1,6 @@
 ﻿// src/SmartTransportationMenu.tsx
 import React, { FC, useCallback, useMemo, useState } from "react";
 import {bindLocalValue, useValue} from "cs2/api"
-import { Color } from "cs2/bindings";
 import { Button, Icon, Tooltip } from "cs2/ui";
 import { useLocalization } from "cs2/l10n";
 import icon from "images/tram-svgrepo-com.svg";
@@ -9,6 +8,7 @@ import styles from "mods/SmartTransportationMenu.module.scss";
 import CustomRulesPanel from "mods/CustomRulesComponent/CustomRulesPanel";
 import AddCustomRulePanel from "mods/AddCustomRuleComponent/AddCustomRulePanel";
 import ViewRoutesPanel from "mods/ViewRoutesComponent/ViewRoutesPanel";
+import { CustomRule } from "mods/Domain/customRule";
 
 interface SectionItem {
 	isOpen: boolean;
@@ -17,18 +17,6 @@ interface SectionItem {
 	defaultTooltip: string;
 	displayKey: string;
 	defaultDisplay: string;
-}
-
-interface CustomRule {
-	ruleId: string;
-	ruleName: string;
-	occupancy: number;
-	stdTicket: number;
-	maxTicketInc: number;
-	maxTicketDec: number;
-	maxVehAdj: number;
-	minVehAdj: number;
-	routeColor: Color;
 }
 
 type SectionsType = Record<string, SectionItem>;
