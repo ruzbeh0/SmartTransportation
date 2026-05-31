@@ -135,6 +135,14 @@
     margin-bottom: 6rem;
 }
 
+.vehicleColorGrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8rem;
+    margin-top: 4rem;
+    margin-bottom: 6rem;
+}
+
 .vehicleSelectorSection {
     margin-top: 6rem;
     min-height: 0;
@@ -180,4 +188,26 @@
     text-align: left;
     coh-font-fit-mode: shrink;
     overflow: hidden;
+}
+
+.namingSection {
+    margin-top: 4rem;
+    margin-bottom: 8rem;
+}
+
+.warningBox {
+    margin-bottom: 8rem;
+    padding: 7rem 8rem;
+    border: 1rem solid rgba(255, 192, 96, 0.48);
+    border-radius: 4rem;
+    background-color: rgba(120, 76, 24, 0.34);
+    color: var(--textColor);
+    font-size: 13rem;
+    line-height: 1.25;
+}
+
+.namingPreview {
+    margin-top: 5rem;
+    color: var(--textColorDim);
+    font-size: 12rem;
 }

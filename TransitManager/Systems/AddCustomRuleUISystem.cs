@@ -47,10 +47,18 @@ namespace SmartTransportation.Systems
             public int maxTicketDec { get; set; }
             public int maxVehAdj { get; set; }
             public int minVehAdj { get; set; }
+            public bool adjustVehicles { get; set; } = true;
             public UnityColor routeColor { get; set; } = SmartTransportation.Components.CustomRule.DefaultRouteColor;
             public bool useRouteColor { get; set; }
             public string transportType { get; set; } = "NotSpecified";
             public bool useVehicleModels { get; set; }
+            public bool useVehicleColors { get; set; }
+            public UnityColor vehicleColor0 { get; set; } = SmartTransportation.Components.CustomRule.DefaultVehicleColor;
+            public UnityColor vehicleColor1 { get; set; } = SmartTransportation.Components.CustomRule.DefaultVehicleColor;
+            public UnityColor vehicleColor2 { get; set; } = SmartTransportation.Components.CustomRule.DefaultVehicleColor;
+            public bool useRouteNaming { get; set; }
+            public bool sequentialRouteNaming { get; set; }
+            public string routeNamePrefix { get; set; } = string.Empty;
             public Entity[] selectedPrimaryVehicles { get; set; } = Array.Empty<Entity>();
             public Entity[] selectedSecondaryVehicles { get; set; } = Array.Empty<Entity>();
         }
@@ -74,10 +82,18 @@ namespace SmartTransportation.Systems
                     dto.maxTicketDec,
                     dto.maxVehAdj,
                     dto.minVehAdj,
+                    dto.adjustVehicles,
                     dto.routeColor,
                     dto.transportType,
                     dto.useRouteColor,
                     dto.useVehicleModels,
+                    dto.useVehicleColors,
+                    dto.vehicleColor0,
+                    dto.vehicleColor1,
+                    dto.vehicleColor2,
+                    dto.useRouteNaming,
+                    dto.sequentialRouteNaming,
+                    dto.routeNamePrefix ?? string.Empty,
                     dto.selectedPrimaryVehicles ?? Array.Empty<Entity>(),
                     dto.selectedSecondaryVehicles ?? Array.Empty<Entity>()
                 );
@@ -139,10 +155,18 @@ namespace SmartTransportation.Systems
                     dto.maxTicketDec,
                     dto.maxVehAdj,
                     dto.minVehAdj,
+                    dto.adjustVehicles,
                     dto.routeColor,
                     dto.transportType,
                     dto.useRouteColor,
                     dto.useVehicleModels,
+                    dto.useVehicleColors,
+                    dto.vehicleColor0,
+                    dto.vehicleColor1,
+                    dto.vehicleColor2,
+                    dto.useRouteNaming,
+                    dto.sequentialRouteNaming,
+                    dto.routeNamePrefix ?? string.Empty,
                     dto.selectedPrimaryVehicles ?? Array.Empty<Entity>(),
                     dto.selectedSecondaryVehicles ?? Array.Empty<Entity>()
                 );

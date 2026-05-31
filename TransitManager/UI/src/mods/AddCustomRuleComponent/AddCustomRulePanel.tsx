@@ -14,6 +14,7 @@ import { TransportVehicleOptions, VehiclePrefabOption } from "mods/Domain/transp
 import { ModuleResolver } from "mods/moduleResolver";
 
 const defaultRouteColor: Color = { r: 0.0, g: 0.54, b: 0.85, a: 1.0 };
+const defaultVehicleColor: Color = { r: 1.0, g: 1.0, b: 1.0, a: 1.0 };
 const notSpecifiedTransportType = "NotSpecified";
 const transportTypeOptions = [
     notSpecifiedTransportType,
@@ -160,10 +161,18 @@ const AddCustomRulePanel: React.FC<AddCustomRulePanelProps & DraggablePanelProps
     const [maxTicketDec, setMaxTicketDec] = useState<number>(initialRule?.maxTicketDec ?? 20);
     const [maxVehAdj, setMaxVehAdj] = useState<number>(initialRule?.maxVehAdj ?? 30);
     const [minVehAdj, setMinVehAdj] = useState<number>(initialRule?.minVehAdj ?? 30);
+    const [adjustVehicles, setAdjustVehicles] = useState<boolean>(initialRule?.adjustVehicles ?? true);
     const [routeColor, setRouteColor] = useState<Color>(initialRule?.routeColor ?? defaultRouteColor);
     const [useRouteColor, setUseRouteColor] = useState<boolean>(initialRule?.useRouteColor ?? false);
     const [transportType, setTransportType] = useState(getInitialTransportType(initialRule));
     const [useVehicleModels, setUseVehicleModels] = useState<boolean>(initialRule?.useVehicleModels ?? false);
+    const [useVehicleColors, setUseVehicleColors] = useState<boolean>(initialRule?.useVehicleColors ?? false);
+    const [vehicleColor0, setVehicleColor0] = useState<Color>(initialRule?.vehicleColor0 ?? defaultVehicleColor);
+    const [vehicleColor1, setVehicleColor1] = useState<Color>(initialRule?.vehicleColor1 ?? defaultVehicleColor);
+    const [vehicleColor2, setVehicleColor2] = useState<Color>(initialRule?.vehicleColor2 ?? defaultVehicleColor);
+    const [useRouteNaming, setUseRouteNaming] = useState<boolean>(initialRule?.useRouteNaming ?? false);
+    const [sequentialRouteNaming, setSequentialRouteNaming] = useState<boolean>(initialRule?.sequentialRouteNaming ?? false);
+    const [routeNamePrefix, setRouteNamePrefix] = useState<string>(initialRule?.routeNamePrefix ?? "");
     const [selectedPrimaryVehicles, setSelectedPrimaryVehicles] = useState<Entity[]>(initialRule?.selectedPrimaryVehicles ?? []);
     const [selectedSecondaryVehicles, setSelectedSecondaryVehicles] = useState<Entity[]>(initialRule?.selectedSecondaryVehicles ?? []);
 
@@ -195,10 +204,18 @@ const AddCustomRulePanel: React.FC<AddCustomRulePanelProps & DraggablePanelProps
             setMaxTicketDec(20);
             setMaxVehAdj(30);
             setMinVehAdj(30);
+            setAdjustVehicles(true);
             setRouteColor(defaultRouteColor);
             setUseRouteColor(false);
             setTransportType(notSpecifiedTransportType);
             setUseVehicleModels(false);
+            setUseVehicleColors(false);
+            setVehicleColor0(defaultVehicleColor);
+            setVehicleColor1(defaultVehicleColor);
+            setVehicleColor2(defaultVehicleColor);
+            setUseRouteNaming(false);
+            setSequentialRouteNaming(false);
+            setRouteNamePrefix("");
             setSelectedPrimaryVehicles([]);
             setSelectedSecondaryVehicles([]);
             return;
@@ -211,10 +228,18 @@ const AddCustomRulePanel: React.FC<AddCustomRulePanelProps & DraggablePanelProps
         setMaxTicketDec(initialRule.maxTicketDec);
         setMaxVehAdj(initialRule.maxVehAdj);
         setMinVehAdj(initialRule.minVehAdj);
+        setAdjustVehicles(initialRule.adjustVehicles ?? true);
         setRouteColor(initialRule.routeColor ?? defaultRouteColor);
         setUseRouteColor(initialRule.useRouteColor ?? false);
         setTransportType(getInitialTransportType(initialRule));
         setUseVehicleModels(initialRule.useVehicleModels ?? false);
+        setUseVehicleColors(initialRule.useVehicleColors ?? false);
+        setVehicleColor0(initialRule.vehicleColor0 ?? defaultVehicleColor);
+        setVehicleColor1(initialRule.vehicleColor1 ?? defaultVehicleColor);
+        setVehicleColor2(initialRule.vehicleColor2 ?? defaultVehicleColor);
+        setUseRouteNaming(initialRule.useRouteNaming ?? false);
+        setSequentialRouteNaming(initialRule.sequentialRouteNaming ?? false);
+        setRouteNamePrefix(initialRule.routeNamePrefix ?? "");
         setSelectedPrimaryVehicles(initialRule.selectedPrimaryVehicles ?? []);
         setSelectedSecondaryVehicles(initialRule.selectedSecondaryVehicles ?? []);
     }, [initialRule]);
@@ -261,10 +286,18 @@ const AddCustomRulePanel: React.FC<AddCustomRulePanelProps & DraggablePanelProps
             maxTicketDec,
             maxVehAdj,
             minVehAdj,
+            adjustVehicles,
             routeColor,
             useRouteColor,
             transportType: savedTransportType,
             useVehicleModels: savedUseVehicleModels,
+            useVehicleColors,
+            vehicleColor0,
+            vehicleColor1,
+            vehicleColor2,
+            useRouteNaming,
+            sequentialRouteNaming: useRouteNaming ? sequentialRouteNaming : false,
+            routeNamePrefix: useRouteNaming ? routeNamePrefix.trim().slice(0, 28) : "",
             selectedPrimaryVehicles: savedUseVehicleModels ? selectedPrimaryVehicles : [],
             selectedSecondaryVehicles: savedUseVehicleModels ? selectedSecondaryVehicles : [],
         };
@@ -399,6 +432,92 @@ const AddCustomRulePanel: React.FC<AddCustomRulePanelProps & DraggablePanelProps
                         </div>
                     )}
 
+                    <OptionToggle
+                        label="Apply Vehicle Colors"
+                        selected={useVehicleColors}
+                        onToggle={setUseVehicleColors}
+                    />
+
+                    {useVehicleColors && (
+                        <div className={styles.vehicleColorGrid}>
+                            <div>
+                                <div className={styles.labelStyle}>
+                                    Vehicle color 1
+                                </div>
+                                <div className={styles.colorPickerRow}>
+                                    <ColorField
+                                        value={vehicleColor0}
+                                        alpha={false}
+                                        className={styles.colorField}
+                                        onChange={setVehicleColor0}
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <div className={styles.labelStyle}>
+                                    Vehicle color 2
+                                </div>
+                                <div className={styles.colorPickerRow}>
+                                    <ColorField
+                                        value={vehicleColor1}
+                                        alpha={false}
+                                        className={styles.colorField}
+                                        onChange={setVehicleColor1}
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <div className={styles.labelStyle}>
+                                    Vehicle color 3
+                                </div>
+                                <div className={styles.colorPickerRow}>
+                                    <ColorField
+                                        value={vehicleColor2}
+                                        alpha={false}
+                                        className={styles.colorField}
+                                        onChange={setVehicleColor2}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <OptionToggle
+                        label="Apply Route Naming"
+                        selected={useRouteNaming}
+                        onToggle={setUseRouteNaming}
+                    />
+
+                    {useRouteNaming && (
+                        <div className={styles.namingSection}>
+                            <div className={styles.warningBox}>
+                                Saving this option will rename matching routes that do not follow this prefix + number pattern.
+                            </div>
+                            <div className={styles.labelStyle}>
+                                Optional prefix
+                            </div>
+                            <TextInput
+                                id="routeNamePrefix"
+                                value={routeNamePrefix}
+                                onChange={(value) => setRouteNamePrefix(value.slice(0, 28))}
+                                placeholder="Example: B-"
+                            />
+                            <OptionToggle
+                                label="Renumber routes in this rule"
+                                selected={sequentialRouteNaming}
+                                onToggle={setSequentialRouteNaming}
+                            />
+                            {sequentialRouteNaming && (
+                                <div className={styles.warningBox}>
+                                    Matching routes will be numbered from 1 in route-number order. For example, existing routes 5, 6, and 10 become {(routeNamePrefix.trim() || "")}1, {(routeNamePrefix.trim() || "")}2, and {(routeNamePrefix.trim() || "")}3.
+                                </div>
+                            )}
+                            <div className={styles.namingPreview}>
+                                Preview: {(routeNamePrefix.trim() || "")}1
+                            </div>
+                        </div>
+                    )}
+
                     <div>
                         <div className={styles.labelStyle}>
                             Occupancy target (%)
@@ -447,17 +566,25 @@ const AddCustomRulePanel: React.FC<AddCustomRulePanelProps & DraggablePanelProps
                         />
                     </div>
 
-                    <div>
-                        <div className={styles.labelStyle}>
-                            Minimum vehicle adjustment (%)
-                        </div>
-                        <IntInput
-                            id="minVehAdj"
-                            value={minVehAdj}
-                            onChange={setMinVehAdj}
-                            placeholder={30}
-                        />
-                    </div>
+                    <OptionToggle
+                        label="Adjust Vehicles"
+                        selected={adjustVehicles}
+                        onToggle={setAdjustVehicles}
+                    />
+
+                    {adjustVehicles && (
+                        <>
+                            <div>
+                                <div className={styles.labelStyle}>
+                                    Minimum vehicle adjustment (%)
+                                </div>
+                                <IntInput
+                                    id="minVehAdj"
+                                    value={minVehAdj}
+                                    onChange={setMinVehAdj}
+                                    placeholder={30}
+                                />
+                            </div>
 
                             <div>
                                 <div className={styles.labelStyle}>
@@ -470,6 +597,8 @@ const AddCustomRulePanel: React.FC<AddCustomRulePanelProps & DraggablePanelProps
                                     placeholder={30}
                                 />
                             </div>
+                        </>
+                    )}
                         </div>
                     </div>
                 </Scrollable>

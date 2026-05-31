@@ -14,15 +14,23 @@ namespace SmartTransportation.Domain
         public int MaxTicketDec { get; }
         public int MaxVehAdj { get; }
         public int MinVehAdj { get; }
+        public bool AdjustVehicles { get; }
         public Color RouteColor { get; }
         public bool UseRouteColor { get; }
         public string TransportType { get; }
         public bool UseVehicleModels { get; }
+        public bool UseVehicleColors { get; }
+        public Color VehicleColor0 { get; }
+        public Color VehicleColor1 { get; }
+        public Color VehicleColor2 { get; }
+        public bool UseRouteNaming { get; }
+        public bool SequentialRouteNaming { get; }
+        public string RouteNamePrefix { get; }
         public Entity[] SelectedPrimaryVehicles { get; }
         public Entity[] SelectedSecondaryVehicles { get; }
 
         public CustomRule(Colossal.Hash128 ruleId, string ruleName, int occupancy, int stdTicket, int maxTicketInc, int maxTicketDec, int maxVehAdj, int minVehAdj, Color routeColor)
-            : this(ruleId, ruleName, occupancy, stdTicket, maxTicketInc, maxTicketDec, maxVehAdj, minVehAdj, routeColor, false, "NotSpecified", false, null, null)
+            : this(ruleId, ruleName, occupancy, stdTicket, maxTicketInc, maxTicketDec, maxVehAdj, minVehAdj, true, routeColor, false, "NotSpecified", false, false, SmartTransportation.Components.CustomRule.DefaultVehicleColor, SmartTransportation.Components.CustomRule.DefaultVehicleColor, SmartTransportation.Components.CustomRule.DefaultVehicleColor, false, false, string.Empty, null, null)
         {
         }
 
@@ -35,10 +43,18 @@ namespace SmartTransportation.Domain
             int maxTicketDec,
             int maxVehAdj,
             int minVehAdj,
+            bool adjustVehicles,
             Color routeColor,
             bool useRouteColor,
             string transportType,
             bool useVehicleModels,
+            bool useVehicleColors,
+            Color vehicleColor0,
+            Color vehicleColor1,
+            Color vehicleColor2,
+            bool useRouteNaming,
+            bool sequentialRouteNaming,
+            string routeNamePrefix,
             Entity[] selectedPrimaryVehicles,
             Entity[] selectedSecondaryVehicles)
         {
@@ -50,10 +66,18 @@ namespace SmartTransportation.Domain
             MaxTicketDec = maxTicketDec;
             MaxVehAdj = maxVehAdj;
             MinVehAdj = minVehAdj;
+            AdjustVehicles = adjustVehicles;
             RouteColor = routeColor;
             UseRouteColor = useRouteColor;
             TransportType = string.IsNullOrWhiteSpace(transportType) ? "NotSpecified" : transportType;
             UseVehicleModels = useVehicleModels;
+            UseVehicleColors = useVehicleColors;
+            VehicleColor0 = vehicleColor0;
+            VehicleColor1 = vehicleColor1;
+            VehicleColor2 = vehicleColor2;
+            UseRouteNaming = useRouteNaming;
+            SequentialRouteNaming = sequentialRouteNaming;
+            RouteNamePrefix = routeNamePrefix ?? string.Empty;
             SelectedPrimaryVehicles = selectedPrimaryVehicles ?? System.Array.Empty<Entity>();
             SelectedSecondaryVehicles = selectedSecondaryVehicles ?? System.Array.Empty<Entity>();
         }
@@ -77,6 +101,8 @@ namespace SmartTransportation.Domain
             writer.Write(MaxVehAdj);
             writer.PropertyName("minVehAdj");
             writer.Write(MinVehAdj);
+            writer.PropertyName("adjustVehicles");
+            writer.Write(AdjustVehicles);
             writer.PropertyName("routeColor");
             writer.Write(RouteColor);
             writer.PropertyName("useRouteColor");
@@ -85,6 +111,20 @@ namespace SmartTransportation.Domain
             writer.Write(TransportType);
             writer.PropertyName("useVehicleModels");
             writer.Write(UseVehicleModels);
+            writer.PropertyName("useVehicleColors");
+            writer.Write(UseVehicleColors);
+            writer.PropertyName("vehicleColor0");
+            writer.Write(VehicleColor0);
+            writer.PropertyName("vehicleColor1");
+            writer.Write(VehicleColor1);
+            writer.PropertyName("vehicleColor2");
+            writer.Write(VehicleColor2);
+            writer.PropertyName("useRouteNaming");
+            writer.Write(UseRouteNaming);
+            writer.PropertyName("sequentialRouteNaming");
+            writer.Write(SequentialRouteNaming);
+            writer.PropertyName("routeNamePrefix");
+            writer.Write(RouteNamePrefix);
             writer.PropertyName("selectedPrimaryVehicles");
             WriteEntities(writer, SelectedPrimaryVehicles);
             writer.PropertyName("selectedSecondaryVehicles");

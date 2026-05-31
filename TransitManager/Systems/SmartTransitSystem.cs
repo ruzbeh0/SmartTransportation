@@ -28,6 +28,7 @@ namespace SmartTransportation
             public int StandardTicketPrice;
             public float MinVehiclesAdj;
             public float MaxVehiclesAdj;
+            public bool AdjustVehicles;
         }
         private struct RouteData
         {
@@ -386,6 +387,8 @@ namespace SmartTransportation
                 routeRule = default;
             }
 
+            m_ManageRouteSystem.ApplyConfiguredCosmeticsToRoute(routeEntity);
+
             RouteConfig config = GetRouteConfig(transportLineData.m_TransportType, hasCustomRule, routeRule);
 
             if (config.OccupancyTarget == 0)
@@ -488,17 +491,9 @@ namespace SmartTransportation
             if (ticketPrice == 0 && config.StandardTicketPrice > 0) ticketPrice = config.StandardTicketPrice;
             int oldTicketPrice = ticketPrice;
 
-            // Min/Max Vehicle Calculation
-            PolicySliderData policySliderData = m_PolicySliderDatas[m_VehicleCountPolicy];
-            int maxVehicles = CalculateVehicleCountFromAdjustment(policySliderData.m_Range.max, defaultVehicleInterval, stableDuration, m_RouteModifierDatas, m_VehicleCountPolicy, m_PolicySliderDatas);
-            int minVehicles = CalculateVehicleCountFromAdjustment(policySliderData.m_Range.min, defaultVehicleInterval, stableDuration, m_RouteModifierDatas, m_VehicleCountPolicy, m_PolicySliderDatas);
-
             int setVehicles = TransportLineSystem.CalculateVehicleCount(vehicleInterval, stableDuration);
             int oldVehicles = setVehicles;
-
-            maxVehicles = (int)Math.Round(maxVehicles * (1 + config.MaxVehiclesAdj / 100f));
-            minVehicles = (int)Math.Round(minVehicles * (1 - config.MinVehiclesAdj / 100f));
-            if (minVehicles < 1) minVehicles = 1;
+            int maxChangeAllowed = 0;
 
             float targetRatio = config.OccupancyTarget / 100f;
             float margin = Mod.m_Setting.threshold / 100f;
@@ -565,52 +560,68 @@ namespace SmartTransportation
                 }
             }
 
-            // [Step B] Calculate Required Vehicles
-            int singleVehicleCap = data.PassengerCapacityPerVehicle;
-
-            if (singleVehicleCap > 0)
+            if (config.AdjustVehicles)
             {
-                float effectiveTargetRatio = targetRatio;
-                if (targetRatio == 0)
+                // Min/Max Vehicle Calculation
+                PolicySliderData policySliderData = m_PolicySliderDatas[m_VehicleCountPolicy];
+                int maxVehicles = CalculateVehicleCountFromAdjustment(policySliderData.m_Range.max, defaultVehicleInterval, stableDuration, m_RouteModifierDatas, m_VehicleCountPolicy, m_PolicySliderDatas);
+                int minVehicles = CalculateVehicleCountFromAdjustment(policySliderData.m_Range.min, defaultVehicleInterval, stableDuration, m_RouteModifierDatas, m_VehicleCountPolicy, m_PolicySliderDatas);
+
+                maxVehicles = (int)Math.Round(maxVehicles * (1 + config.MaxVehiclesAdj / 100f));
+                minVehicles = (int)Math.Round(minVehicles * (1 - config.MinVehiclesAdj / 100f));
+                if (minVehicles < 1) minVehicles = 1;
+
+                // [Step B] Calculate Required Vehicles
+                int singleVehicleCap = data.PassengerCapacityPerVehicle;
+
+                if (singleVehicleCap > 0)
                 {
-                    if (Mod.m_Setting.debug)
+                    float effectiveTargetRatio = targetRatio;
+                    if (targetRatio == 0)
                     {
-                        Mod.log.Info($"   -> Warning:  Divide by zero may occur due to target ratio being 0.");
-                        Mod.log.Info($"  -> Calculate effective target ratio as 1% to avoid errors.");
+                        if (Mod.m_Setting.debug)
+                        {
+                            Mod.log.Info($"   -> Warning:  Divide by zero may occur due to target ratio being 0.");
+                            Mod.log.Info($"  -> Calculate effective target ratio as 1% to avoid errors.");
+                        }
+                        effectiveTargetRatio = math.max(targetRatio, 0.01f);
                     }
-                    effectiveTargetRatio = math.max(targetRatio, 0.01f);
+
+                    // Calculate needed vehicles based on capacity ratio
+                    if (weightedCapacityRatio > upperLimit)
+                    {
+                        float needed = totalLoad / (singleVehicleCap * effectiveTargetRatio);
+                        setVehicles = (int)Math.Ceiling(needed);
+                    }
+                    else if (weightedCapacityRatio < lowerLimit)
+                    {
+                        float needed = totalLoad / (singleVehicleCap * effectiveTargetRatio);
+                        setVehicles = (int)Math.Floor(needed);
+                    }
                 }
 
-                // Calculate needed vehicles based on capacity ratio
-                if (weightedCapacityRatio > upperLimit)
+                // [Step C] Rate Limiting
+                // Limit the number of vehicles that can be adjusted in one update cycle
+                float limitPercent = Mod.m_Setting.max_adjustable_ongoing_unit / 100f;
+                maxChangeAllowed = (int)Math.Max(1, Math.Round(oldVehicles * limitPercent));
+
+                if (setVehicles > oldVehicles + maxChangeAllowed)
+                    setVehicles = oldVehicles + maxChangeAllowed;
+                else if (setVehicles < oldVehicles - maxChangeAllowed)
+                    setVehicles = oldVehicles - maxChangeAllowed;
+
+                // [Step D] Clamp to Min/Max
+                setVehicles = math.clamp(setVehicles, minVehicles, maxVehicles);
+
+                // Prevent reducing vehicles if too many are empty
+                if (setVehicles < oldVehicles && data.EmptyVehicles / (float)oldVehicles > 0.3f)
                 {
-                    float needed = totalLoad / (singleVehicleCap * effectiveTargetRatio);
-                    setVehicles = (int)Math.Ceiling(needed);
-                }
-                else if (weightedCapacityRatio < lowerLimit)
-                {
-                    float needed = totalLoad / (singleVehicleCap * effectiveTargetRatio);
-                    setVehicles = (int)Math.Floor(needed);
+                    setVehicles = oldVehicles;
                 }
             }
-
-            // [Step C] Rate Limiting
-            // Limit the number of vehicles that can be adjusted in one update cycle
-            float limitPercent = Mod.m_Setting.max_adjustable_ongoing_unit / 100f;
-            int maxChangeAllowed = (int)Math.Max(1, Math.Round(oldVehicles * limitPercent));
-
-            if (setVehicles > oldVehicles + maxChangeAllowed)
-                setVehicles = oldVehicles + maxChangeAllowed;
-            else if (setVehicles < oldVehicles - maxChangeAllowed)
-                setVehicles = oldVehicles - maxChangeAllowed;
-
-            // [Step D] Clamp to Min/Max
-            setVehicles = math.clamp(setVehicles, minVehicles, maxVehicles);
-
-            // Prevent reducing vehicles if too many are empty
-            if (setVehicles < oldVehicles && data.EmptyVehicles / (float)oldVehicles > 0.3f)
+            else if (Mod.m_Setting.debug)
             {
-                setVehicles = oldVehicles;
+                Mod.log.Info($"   -> Vehicle adjustment disabled by rule.");
             }
 
             // Apply Changes if needed
@@ -619,7 +630,7 @@ namespace SmartTransportation
                 int isFree = ticketPrice > 0 ? 1 : 0;
                 m_PoliciesUISystem.SetPolicy(routeEntity, m_TicketPricePolicy, isFree != 0, (float)ticketPrice);
 
-                if (setVehicles > 0)
+                if (config.AdjustVehicles && setVehicles > 0)
                 {
                     float newInterval = 100f / (stableDuration / (defaultVehicleInterval * setVehicles));
                     m_PoliciesUISystem.SetPolicy(routeEntity, m_VehicleCountPolicy, true, newInterval);
@@ -629,7 +640,7 @@ namespace SmartTransportation
                 {
                     Mod.log.Info($"Route:{routeNumber.m_Number} ({transportLineData.m_TransportType}) | " +
                                  $"Ratio: {weightedCapacityRatio:P1} (Target: {targetRatio:P0}) | " +
-                                 $"Veh: {oldVehicles}->{setVehicles} (Limit +/-{maxChangeAllowed}) | " +
+                                 $"Veh: {(config.AdjustVehicles ? $"{oldVehicles}->{setVehicles} (Limit +/-{maxChangeAllowed})" : "disabled")} | " +
                                  $"Price: {oldTicketPrice}->{ticketPrice}");
                 }
             }
@@ -649,9 +660,13 @@ namespace SmartTransportation
                 config.MaxTicketDiscount = ruleData.Item6;
                 config.MaxVehiclesAdj = ruleData.Item7;
                 config.MinVehiclesAdj = ruleData.Item8;
+                config.AdjustVehicles = m_ManageRouteSystem.GetRuleAdjustVehiclesOrDefault(routeRule.customRule);
             }
             else
             {
+                var defaultRuleId = new Colossal.Hash128((uint)type, 0, 0, 0);
+                config.AdjustVehicles = m_ManageRouteSystem.GetRuleAdjustVehiclesOrDefault(defaultRuleId);
+
                 switch (type)
                 {
                     case TransportType.Bus:

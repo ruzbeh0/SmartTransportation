@@ -69,10 +69,18 @@ namespace SmartTransportation.Systems
                     rule.maxTicketDec, 
                     rule.maxVehAdj, 
                     rule.minVehAdj,
+                    rule.adjustVehicles,
                     rule.routeColor,
                     rule.useRouteColor,
                     rule.transportType == Game.Prefabs.TransportType.None ? "NotSpecified" : rule.transportType.ToString(),
                     rule.useVehicleModels,
+                    rule.useVehicleColors,
+                    rule.vehicleColor0,
+                    rule.vehicleColor1,
+                    rule.vehicleColor2,
+                    rule.useRouteNaming,
+                    rule.sequentialRouteNaming,
+                    rule.routeNamePrefix,
                     rule.selectedPrimaryVehicles,
                     rule.selectedSecondaryVehicles
                 ));

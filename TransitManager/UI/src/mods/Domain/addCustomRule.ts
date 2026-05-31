@@ -8,10 +8,18 @@ export type AddCustomRule = {
     maxTicketDec: number;
     maxVehAdj: number;
     minVehAdj: number;
+    adjustVehicles: boolean;
     routeColor: Color;
     useRouteColor: boolean;
     transportType: string;
     useVehicleModels: boolean;
+    useVehicleColors: boolean;
+    vehicleColor0: Color;
+    vehicleColor1: Color;
+    vehicleColor2: Color;
+    useRouteNaming: boolean;
+    sequentialRouteNaming: boolean;
+    routeNamePrefix: string;
     selectedPrimaryVehicles: Entity[];
     selectedSecondaryVehicles: Entity[];
 }

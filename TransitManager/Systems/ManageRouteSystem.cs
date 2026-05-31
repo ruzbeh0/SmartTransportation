@@ -6,6 +6,7 @@ using Game;
 using Game.Events;
 using Game.Objects;
 using Game.Prefabs;
+using Game.Rendering;
 using Game.Routes;
 using Game.SceneFlow;
 using Game.Settings;
@@ -71,10 +72,18 @@ namespace SmartTransportation.Bridge
             public int maxTicketDec;
             public int maxVehAdj;
             public int minVehAdj;
+            public bool adjustVehicles;
             public UnityColor routeColor;
             public bool useRouteColor;
             public TransportType transportType;
             public bool useVehicleModels;
+            public bool useVehicleColors;
+            public UnityColor vehicleColor0;
+            public UnityColor vehicleColor1;
+            public UnityColor vehicleColor2;
+            public bool useRouteNaming;
+            public bool sequentialRouteNaming;
+            public string routeNamePrefix;
             public Entity[] selectedPrimaryVehicles;
             public Entity[] selectedSecondaryVehicles;
         }
@@ -248,6 +257,8 @@ namespace SmartTransportation.Bridge
             SyncDefaultRulesFromSettings();
             ApplyAllCustomRuleColors();
             ApplyAllCustomRuleVehicleModels();
+            ApplyAllCustomRuleVehicleColors();
+            ApplyAllCustomRuleRouteNames();
 
             // This system only needs to run on load.
             firstUpdate = true;
@@ -379,7 +390,16 @@ namespace SmartTransportation.Bridge
                 if (!string.IsNullOrEmpty(existingName))
                 {
                     GetCustomRuleVehicleSelections(ruleId, out var selectedPrimaryVehicles, out var selectedSecondaryVehicles);
-                    GetCustomRuleCosmeticSettings(ruleId, out var useRouteColor, out var useVehicleModels);
+                    GetCustomRuleCosmeticSettings(
+                        ruleId,
+                        out var useRouteColor,
+                        out var useVehicleModels,
+                        out var useVehicleColors,
+                        out var vehicleColor0,
+                        out var vehicleColor1,
+                        out var vehicleColor2);
+                    GetCustomRuleRouteNamingSettings(ruleId, out var useRouteNaming, out var sequentialRouteNaming, out var routeNamePrefix);
+                    var adjustVehicles = GetCustomRuleAdjustVehiclesOrDefault(ruleId);
                     var routeColor = useRouteColor
                         ? GetCustomRuleColorOrDefault(ruleId)
                         : defaultRouteColor;
@@ -394,10 +414,18 @@ namespace SmartTransportation.Bridge
                         dec,
                         maxAdj,
                         minAdj,
+                        adjustVehicles,
                         routeColor,
                         ruleTransportType,
                         useRouteColor,
                         useVehicleModels,
+                        useVehicleColors,
+                        vehicleColor0,
+                        vehicleColor1,
+                        vehicleColor2,
+                        useRouteNaming,
+                        sequentialRouteNaming,
+                        routeNamePrefix,
                         selectedPrimaryVehicles,
                         selectedSecondaryVehicles);
                 }
@@ -624,8 +652,10 @@ namespace SmartTransportation.Bridge
         {
             var transportType = GetCustomRuleTransportTypeOrDefault(ruleId);
             GetCustomRuleVehicleSelections(ruleId, out var selectedPrimaryVehicles, out var selectedSecondaryVehicles);
-            GetCustomRuleCosmeticSettings(ruleId, out var useRouteColor, out var useVehicleModels);
-            SetCustomRule(ruleId, ruleName, occupancy, stdTicket, maxTicketInc, maxTicketDec, maxVehAdj, minVehAdj, routeColor, transportType, useRouteColor, useVehicleModels, selectedPrimaryVehicles, selectedSecondaryVehicles);
+            GetCustomRuleCosmeticSettings(ruleId, out var useRouteColor, out var useVehicleModels, out var useVehicleColors, out var vehicleColor0, out var vehicleColor1, out var vehicleColor2);
+            GetCustomRuleRouteNamingSettings(ruleId, out var useRouteNaming, out var sequentialRouteNaming, out var routeNamePrefix);
+            var adjustVehicles = GetCustomRuleAdjustVehiclesOrDefault(ruleId);
+            SetCustomRule(ruleId, ruleName, occupancy, stdTicket, maxTicketInc, maxTicketDec, maxVehAdj, minVehAdj, adjustVehicles, routeColor, transportType, useRouteColor, useVehicleModels, useVehicleColors, vehicleColor0, vehicleColor1, vehicleColor2, useRouteNaming, sequentialRouteNaming, routeNamePrefix, selectedPrimaryVehicles, selectedSecondaryVehicles);
         }
 
         public void SetCustomRule(
@@ -642,8 +672,6 @@ namespace SmartTransportation.Bridge
             Entity[] selectedPrimaryVehicles,
             Entity[] selectedSecondaryVehicles)
         {
-            GetCustomRuleCosmeticSettings(ruleId, out var useRouteColor, out var useVehicleModels);
-
             SetCustomRule(
                 ruleId,
                 ruleName,
@@ -653,10 +681,9 @@ namespace SmartTransportation.Bridge
                 maxTicketDec,
                 maxVehAdj,
                 minVehAdj,
+                GetCustomRuleAdjustVehiclesOrDefault(ruleId),
                 routeColor,
-                ParseRuleTransportType(transportType),
-                useRouteColor,
-                useVehicleModels,
+                transportType,
                 selectedPrimaryVehicles,
                 selectedSecondaryVehicles);
         }
@@ -674,6 +701,13 @@ namespace SmartTransportation.Bridge
             string transportType,
             bool useRouteColor,
             bool useVehicleModels,
+            bool useVehicleColors,
+            UnityColor vehicleColor0,
+            UnityColor vehicleColor1,
+            UnityColor vehicleColor2,
+            bool useRouteNaming,
+            bool sequentialRouteNaming,
+            string routeNamePrefix,
             Entity[] selectedPrimaryVehicles,
             Entity[] selectedSecondaryVehicles)
         {
@@ -686,10 +720,18 @@ namespace SmartTransportation.Bridge
                 maxTicketDec,
                 maxVehAdj,
                 minVehAdj,
+                GetCustomRuleAdjustVehiclesOrDefault(ruleId),
                 routeColor,
-                ParseRuleTransportType(transportType),
+                transportType,
                 useRouteColor,
                 useVehicleModels,
+                useVehicleColors,
+                vehicleColor0,
+                vehicleColor1,
+                vehicleColor2,
+                useRouteNaming,
+                sequentialRouteNaming,
+                routeNamePrefix,
                 selectedPrimaryVehicles,
                 selectedSecondaryVehicles);
         }
@@ -703,10 +745,110 @@ namespace SmartTransportation.Bridge
             int maxTicketDec,
             int maxVehAdj,
             int minVehAdj,
+            bool adjustVehicles,
+            UnityColor routeColor,
+            string transportType,
+            Entity[] selectedPrimaryVehicles,
+            Entity[] selectedSecondaryVehicles)
+        {
+            GetCustomRuleCosmeticSettings(ruleId, out var useRouteColor, out var useVehicleModels, out var useVehicleColors, out var vehicleColor0, out var vehicleColor1, out var vehicleColor2);
+            GetCustomRuleRouteNamingSettings(ruleId, out var useRouteNaming, out var sequentialRouteNaming, out var routeNamePrefix);
+
+            SetCustomRule(
+                ruleId,
+                ruleName,
+                occupancy,
+                stdTicket,
+                maxTicketInc,
+                maxTicketDec,
+                maxVehAdj,
+                minVehAdj,
+                adjustVehicles,
+                routeColor,
+                ParseRuleTransportType(transportType),
+                useRouteColor,
+                useVehicleModels,
+                useVehicleColors,
+                vehicleColor0,
+                vehicleColor1,
+                vehicleColor2,
+                useRouteNaming,
+                sequentialRouteNaming,
+                routeNamePrefix,
+                selectedPrimaryVehicles,
+                selectedSecondaryVehicles);
+        }
+
+        public void SetCustomRule(
+            Colossal.Hash128 ruleId,
+            FixedString64Bytes ruleName,
+            int occupancy,
+            int stdTicket,
+            int maxTicketInc,
+            int maxTicketDec,
+            int maxVehAdj,
+            int minVehAdj,
+            bool adjustVehicles,
+            UnityColor routeColor,
+            string transportType,
+            bool useRouteColor,
+            bool useVehicleModels,
+            bool useVehicleColors,
+            UnityColor vehicleColor0,
+            UnityColor vehicleColor1,
+            UnityColor vehicleColor2,
+            bool useRouteNaming,
+            bool sequentialRouteNaming,
+            string routeNamePrefix,
+            Entity[] selectedPrimaryVehicles,
+            Entity[] selectedSecondaryVehicles)
+        {
+            SetCustomRule(
+                ruleId,
+                ruleName,
+                occupancy,
+                stdTicket,
+                maxTicketInc,
+                maxTicketDec,
+                maxVehAdj,
+                minVehAdj,
+                adjustVehicles,
+                routeColor,
+                ParseRuleTransportType(transportType),
+                useRouteColor,
+                useVehicleModels,
+                useVehicleColors,
+                vehicleColor0,
+                vehicleColor1,
+                vehicleColor2,
+                useRouteNaming,
+                sequentialRouteNaming,
+                routeNamePrefix,
+                selectedPrimaryVehicles,
+                selectedSecondaryVehicles);
+        }
+
+        public void SetCustomRule(
+            Colossal.Hash128 ruleId,
+            FixedString64Bytes ruleName,
+            int occupancy,
+            int stdTicket,
+            int maxTicketInc,
+            int maxTicketDec,
+            int maxVehAdj,
+            int minVehAdj,
+            bool adjustVehicles,
             UnityColor routeColor,
             TransportType transportType,
             bool useRouteColor,
             bool useVehicleModels,
+            bool useVehicleColors,
+            UnityColor vehicleColor0,
+            UnityColor vehicleColor1,
+            UnityColor vehicleColor2,
+            bool useRouteNaming,
+            bool sequentialRouteNaming,
+            string routeNamePrefix,
             Entity[] selectedPrimaryVehicles,
             Entity[] selectedSecondaryVehicles)
         {
@@ -732,6 +874,7 @@ namespace SmartTransportation.Bridge
                         updated.maxTicketDec = maxTicketDec;
                         updated.maxVehAdj = maxVehAdj;
                         updated.minVehAdj = minVehAdj;
+                        updated.adjustVehicles = adjustVehicles;
                         updated.routeColor = NormalizeColor(routeColor);
                         updated.transportType = isBuiltInRule
                             ? GetBuiltInRuleTransportType(ruleId)
@@ -739,6 +882,13 @@ namespace SmartTransportation.Bridge
                         updated.useRouteColor = useRouteColor;
                         updated.useVehicleModels = useVehicleModels &&
                             updated.transportType != CustomRule.UnspecifiedTransportType;
+                        updated.useVehicleColors = useVehicleColors;
+                        updated.vehicleColor0 = NormalizeColor(vehicleColor0);
+                        updated.vehicleColor1 = NormalizeColor(vehicleColor1);
+                        updated.vehicleColor2 = NormalizeColor(vehicleColor2);
+                        updated.useRouteNaming = useRouteNaming;
+                        updated.sequentialRouteNaming = sequentialRouteNaming;
+                        updated.routeNamePrefix = TruncateRouteNamePrefix(routeNamePrefix);
 
                         if (isBuiltInRule && updated.transportType != CustomRule.UnspecifiedTransportType)
                         {
@@ -761,6 +911,8 @@ namespace SmartTransportation.Bridge
                         RemoveRuleFromIncompatibleRoutes(ruleId, updated.transportType);
                         ApplyRuleColorToRoutes(ruleId, updated.routeColor);
                         ApplyRuleVehicleModelsToRoutes(ruleId);
+                        ApplyRuleVehicleColorsToRoutes(ruleId);
+                        ApplyRuleRouteNamesToRoutes(ruleId);
 
                         return;
                     }
@@ -1103,12 +1255,20 @@ namespace SmartTransportation.Bridge
                 maxTicketDec = rule.maxTicketDec,
                 maxVehAdj = rule.maxVehAdj,
                 minVehAdj = rule.minVehAdj,
+                adjustVehicles = rule.adjustVehicles,
                 routeColor = NormalizeColor(rule.routeColor),
                 useRouteColor = rule.useRouteColor,
                 transportType = RuleNames.ContainsKey(rule.ruleId)
                     ? GetBuiltInRuleTransportType(rule.ruleId)
                     : NormalizeRuleTransportType(rule.transportType),
                 useVehicleModels = rule.useVehicleModels,
+                useVehicleColors = rule.useVehicleColors,
+                vehicleColor0 = NormalizeColor(rule.vehicleColor0),
+                vehicleColor1 = NormalizeColor(rule.vehicleColor1),
+                vehicleColor2 = NormalizeColor(rule.vehicleColor2),
+                useRouteNaming = rule.useRouteNaming,
+                sequentialRouteNaming = rule.sequentialRouteNaming,
+                routeNamePrefix = rule.routeNamePrefix.ToString(),
                 selectedPrimaryVehicles = selectedPrimaryVehicles,
                 selectedSecondaryVehicles = selectedSecondaryVehicles
             };
@@ -1124,17 +1284,63 @@ namespace SmartTransportation.Bridge
                 : CustomRule.UnspecifiedTransportType;
         }
 
-        private void GetCustomRuleCosmeticSettings(Colossal.Hash128 ruleId, out bool useRouteColor, out bool useVehicleModels)
+        public bool GetRuleAdjustVehiclesOrDefault(Colossal.Hash128 ruleId)
+        {
+            return GetCustomRuleAdjustVehiclesOrDefault(ruleId);
+        }
+
+        private bool GetCustomRuleAdjustVehiclesOrDefault(Colossal.Hash128 ruleId)
+        {
+            return TryGetCustomRuleEntity(ruleId, out _, out var rule)
+                ? rule.adjustVehicles
+                : true;
+        }
+
+        private void GetCustomRuleCosmeticSettings(
+            Colossal.Hash128 ruleId,
+            out bool useRouteColor,
+            out bool useVehicleModels,
+            out bool useVehicleColors,
+            out UnityColor vehicleColor0,
+            out UnityColor vehicleColor1,
+            out UnityColor vehicleColor2)
         {
             if (TryGetCustomRuleEntity(ruleId, out _, out var rule))
             {
                 useRouteColor = rule.useRouteColor;
                 useVehicleModels = rule.useVehicleModels;
+                useVehicleColors = rule.useVehicleColors;
+                vehicleColor0 = NormalizeColor(rule.vehicleColor0);
+                vehicleColor1 = NormalizeColor(rule.vehicleColor1);
+                vehicleColor2 = NormalizeColor(rule.vehicleColor2);
                 return;
             }
 
             useRouteColor = false;
             useVehicleModels = false;
+            useVehicleColors = false;
+            vehicleColor0 = CustomRule.DefaultVehicleColor;
+            vehicleColor1 = CustomRule.DefaultVehicleColor;
+            vehicleColor2 = CustomRule.DefaultVehicleColor;
+        }
+
+        private void GetCustomRuleRouteNamingSettings(
+            Colossal.Hash128 ruleId,
+            out bool useRouteNaming,
+            out bool sequentialRouteNaming,
+            out string routeNamePrefix)
+        {
+            if (TryGetCustomRuleEntity(ruleId, out _, out var rule))
+            {
+                useRouteNaming = rule.useRouteNaming;
+                sequentialRouteNaming = rule.sequentialRouteNaming;
+                routeNamePrefix = rule.routeNamePrefix.ToString();
+                return;
+            }
+
+            useRouteNaming = false;
+            sequentialRouteNaming = false;
+            routeNamePrefix = string.Empty;
         }
 
         private void GetCustomRuleVehicleSelections(Colossal.Hash128 ruleId, out Entity[] selectedPrimaryVehicles, out Entity[] selectedSecondaryVehicles)
@@ -1254,6 +1460,22 @@ namespace SmartTransportation.Bridge
             {
                 RemoveRuleFromIncompatibleRoutes(rule.ruleId, rule.transportType);
                 ApplyRuleVehicleModelsToRoutes(rule.ruleId);
+            }
+        }
+
+        private void ApplyAllCustomRuleVehicleColors()
+        {
+            foreach (var rule in GetCustomRuleDetails())
+            {
+                ApplyRuleVehicleColorsToRoutes(rule.ruleId);
+            }
+        }
+
+        private void ApplyAllCustomRuleRouteNames()
+        {
+            foreach (var rule in GetCustomRuleDetails())
+            {
+                ApplyRuleRouteNamesToRoutes(rule.ruleId);
             }
         }
 
@@ -1420,6 +1642,163 @@ namespace SmartTransportation.Bridge
                 ApplyVehicleModelsToRoute(routeEntity, ruleVehicleModels);
         }
 
+        private void ApplyRuleVehicleColorsToRoutes(Colossal.Hash128 ruleId)
+        {
+            if (IsDisabledRule(ruleId))
+                return;
+
+            if (!TryGetCustomRuleEntity(ruleId, out _, out var rule) || !rule.useVehicleColors)
+                return;
+
+            var ruleTransportType = RuleNames.ContainsKey(ruleId)
+                ? GetBuiltInRuleTransportType(ruleId)
+                : NormalizeRuleTransportType(rule.transportType);
+            var colorSet = CreateVehicleColorSet(rule);
+
+            using var entities = entityQuery.ToEntityArray(Allocator.Temp);
+
+            foreach (var ent in entities)
+            {
+                if (RouteUsesRuleForCosmetics(ent, ruleId, ruleTransportType))
+                    ApplyVehicleColorsToRoute(ent, colorSet);
+            }
+        }
+
+        private void ApplyRuleVehicleColorsToRouteIfConfigured(Entity routeEntity, Colossal.Hash128 ruleId)
+        {
+            if (IsDisabledRule(ruleId))
+                return;
+
+            if (!TryGetCustomRuleEntity(ruleId, out _, out var rule) || !rule.useVehicleColors)
+                return;
+
+            var ruleTransportType = RuleNames.ContainsKey(ruleId)
+                ? GetBuiltInRuleTransportType(ruleId)
+                : NormalizeRuleTransportType(rule.transportType);
+
+            if (ruleTransportType != CustomRule.UnspecifiedTransportType &&
+                (!TryGetRouteTransportType(routeEntity, out var routeTransportType) ||
+                 routeTransportType != ruleTransportType))
+            {
+                return;
+            }
+
+            ApplyVehicleColorsToRoute(routeEntity, CreateVehicleColorSet(rule));
+        }
+
+        private void ApplyRuleRouteNamesToRoutes(Colossal.Hash128 ruleId)
+        {
+            if (IsDisabledRule(ruleId))
+                return;
+
+            if (!TryGetCustomRuleEntity(ruleId, out _, out var rule) || !rule.useRouteNaming)
+                return;
+
+            var nameSystem = GetNameSystem();
+            if (nameSystem == null)
+                return;
+
+            var ruleTransportType = RuleNames.ContainsKey(ruleId)
+                ? GetBuiltInRuleTransportType(ruleId)
+                : NormalizeRuleTransportType(rule.transportType);
+
+            using var entities = entityQuery.ToEntityArray(Allocator.Temp);
+
+            if (rule.sequentialRouteNaming)
+            {
+                var matchingRoutes = new List<(Entity entity, int routeNumber)>();
+                foreach (var ent in entities)
+                {
+                    if (!RouteUsesRuleForCosmetics(ent, ruleId, ruleTransportType) ||
+                        !EntityManager.TryGetComponent<RouteNumber>(ent, out var routeNumber))
+                    {
+                        continue;
+                    }
+
+                    matchingRoutes.Add((ent, routeNumber.m_Number));
+                }
+
+                matchingRoutes.Sort((left, right) => left.routeNumber.CompareTo(right.routeNumber));
+
+                for (var i = 0; i < matchingRoutes.Count; i++)
+                    ApplyRouteNameToRoute(matchingRoutes[i].entity, rule, nameSystem, i + 1);
+            }
+            else
+            {
+                foreach (var ent in entities)
+                {
+                    if (RouteUsesRuleForCosmetics(ent, ruleId, ruleTransportType))
+                        ApplyRouteNameToRoute(ent, rule, nameSystem);
+                }
+            }
+        }
+
+        private void ApplyRuleRouteNameToRouteIfConfigured(Entity routeEntity, Colossal.Hash128 ruleId)
+        {
+            if (IsDisabledRule(ruleId))
+                return;
+
+            if (!TryGetCustomRuleEntity(ruleId, out _, out var rule) || !rule.useRouteNaming)
+                return;
+
+            var ruleTransportType = RuleNames.ContainsKey(ruleId)
+                ? GetBuiltInRuleTransportType(ruleId)
+                : NormalizeRuleTransportType(rule.transportType);
+
+            if (ruleTransportType != CustomRule.UnspecifiedTransportType &&
+                (!TryGetRouteTransportType(routeEntity, out var routeTransportType) ||
+                 routeTransportType != ruleTransportType))
+            {
+                return;
+            }
+
+            if (rule.sequentialRouteNaming)
+            {
+                ApplyRuleRouteNamesToRoutes(ruleId);
+                return;
+            }
+
+            var nameSystem = GetNameSystem();
+            if (nameSystem != null)
+                ApplyRouteNameToRoute(routeEntity, rule, nameSystem);
+        }
+
+        private void ApplyRouteNameToRoute(Entity routeEntity, CustomRule rule, NameSystem nameSystem)
+        {
+            if (!EntityManager.TryGetComponent<RouteNumber>(routeEntity, out var routeNumber))
+                return;
+
+            ApplyRouteNameToRoute(routeEntity, rule, nameSystem, routeNumber.m_Number);
+        }
+
+        private void ApplyRouteNameToRoute(Entity routeEntity, CustomRule rule, NameSystem nameSystem, int number)
+        {
+            var desiredName = $"{rule.routeNamePrefix.ToString()}{number}";
+            if (string.IsNullOrWhiteSpace(desiredName))
+                return;
+
+            if (nameSystem.TryGetCustomName(routeEntity, out var currentName) &&
+                string.Equals(currentName, desiredName, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            nameSystem.SetCustomName(routeEntity, desiredName);
+        }
+
+        private NameSystem GetNameSystem()
+        {
+            try
+            {
+                var world = World.DefaultGameObjectInjectionWorld;
+                return world?.GetExistingSystemManaged<NameSystem>();
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         private void ApplyVehicleModelsToRoute(Entity routeEntity, DynamicBuffer<VehicleModel> sourceVehicleModels)
         {
             if (!EntityManager.HasBuffer<VehicleModel>(routeEntity))
@@ -1435,6 +1814,59 @@ namespace SmartTransportation.Bridge
 
                 targetVehicleModels.Add(vehicleModel);
             }
+        }
+
+        private static ColorSet CreateVehicleColorSet(CustomRule rule)
+        {
+            return new ColorSet
+            {
+                m_Channel0 = NormalizeColor(rule.vehicleColor0),
+                m_Channel1 = NormalizeColor(rule.vehicleColor1),
+                m_Channel2 = NormalizeColor(rule.vehicleColor2)
+            };
+        }
+
+        private void ApplyVehicleColorsToRoute(Entity routeEntity, ColorSet colorSet)
+        {
+            if (!EntityManager.HasBuffer<RouteVehicle>(routeEntity))
+                return;
+
+            var routeVehicles = EntityManager.GetBuffer<RouteVehicle>(routeEntity, true);
+            foreach (var routeVehicle in routeVehicles)
+            {
+                ApplyVehicleColorsToObject(routeVehicle.m_Vehicle, colorSet);
+            }
+        }
+
+        private void ApplyVehicleColorsToObject(Entity vehicleEntity, ColorSet colorSet)
+        {
+            if (vehicleEntity == Entity.Null || !EntityManager.Exists(vehicleEntity))
+                return;
+
+            SetCustomMeshColor(vehicleEntity, colorSet);
+
+            if (!EntityManager.HasBuffer<Game.Objects.SubObject>(vehicleEntity))
+                return;
+
+            var subObjects = EntityManager.GetBuffer<Game.Objects.SubObject>(vehicleEntity, true);
+            foreach (var subObject in subObjects)
+            {
+                if (subObject.m_SubObject != Entity.Null && EntityManager.Exists(subObject.m_SubObject))
+                    SetCustomMeshColor(subObject.m_SubObject, colorSet);
+            }
+        }
+
+        private void SetCustomMeshColor(Entity entity, ColorSet colorSet)
+        {
+            if (!EntityManager.HasBuffer<CustomMeshColor>(entity))
+                EntityManager.AddBuffer<CustomMeshColor>(entity);
+
+            var customMeshColors = EntityManager.GetBuffer<CustomMeshColor>(entity);
+            customMeshColors.Clear();
+            customMeshColors.Add(new CustomMeshColor
+            {
+                m_ColorSet = colorSet
+            });
         }
 
         private void ApplyRouteColor(Entity routeEntity, UnityColor routeColor)
@@ -1476,6 +1908,15 @@ namespace SmartTransportation.Bridge
             color.b = UnityEngine.Mathf.Clamp01(color.b);
             color.a = UnityEngine.Mathf.Clamp01(color.a);
             return color;
+        }
+
+        private static FixedString32Bytes TruncateRouteNamePrefix(string prefix)
+        {
+            var value = (prefix ?? string.Empty).Trim();
+            if (value.Length > 28)
+                value = value.Substring(0, 28);
+
+            return value;
         }
 
         public struct RouteInfoForUI
@@ -1525,6 +1966,8 @@ namespace SmartTransportation.Bridge
 
                         ApplyRuleColorToRouteIfConfigured(ent, defaultRuleId);
                         ApplyRuleVehicleModelsToRouteIfConfigured(ent, defaultRuleId);
+                        ApplyRuleVehicleColorsToRouteIfConfigured(ent, defaultRuleId);
+                        ApplyRuleRouteNameToRouteIfConfigured(ent, defaultRuleId);
                     }
                     else if (ruleIdOrNull.Value.Equals(defaultRuleId))
                     {
@@ -1534,6 +1977,8 @@ namespace SmartTransportation.Bridge
 
                         ApplyRuleColorToRouteIfConfigured(ent, defaultRuleId);
                         ApplyRuleVehicleModelsToRouteIfConfigured(ent, defaultRuleId);
+                        ApplyRuleVehicleColorsToRouteIfConfigured(ent, defaultRuleId);
+                        ApplyRuleRouteNameToRouteIfConfigured(ent, defaultRuleId);
                     }
                     else
                     {
@@ -1551,6 +1996,8 @@ namespace SmartTransportation.Bridge
                             SetRouteRule(ent, selectedRuleId);
                             ApplyRuleColorToRouteIfConfigured(ent, selectedRuleId);
                             ApplyRuleVehicleModelsToRouteIfConfigured(ent, selectedRuleId);
+                            ApplyRuleVehicleColorsToRouteIfConfigured(ent, selectedRuleId);
+                            ApplyRuleRouteNameToRouteIfConfigured(ent, selectedRuleId);
                         }
                     }
 
@@ -1561,6 +2008,21 @@ namespace SmartTransportation.Bridge
             {
                 entities.Dispose();
             }
+        }
+
+        public void ApplyConfiguredCosmeticsToRoute(Entity routeEntity)
+        {
+            if (routeEntity == Entity.Null || !EntityManager.Exists(routeEntity))
+                return;
+
+            var (ruleId, ruleName) = GetRouteRule(routeEntity);
+            if (string.IsNullOrEmpty(ruleName))
+                return;
+
+            ApplyRuleColorToRouteIfConfigured(routeEntity, ruleId);
+            ApplyRuleVehicleModelsToRouteIfConfigured(routeEntity, ruleId);
+            ApplyRuleVehicleColorsToRouteIfConfigured(routeEntity, ruleId);
+            ApplyRuleRouteNameToRouteIfConfigured(routeEntity, ruleId);
         }
 
         /// <summary>
