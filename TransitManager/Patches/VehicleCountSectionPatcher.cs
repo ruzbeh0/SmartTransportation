@@ -192,8 +192,11 @@ namespace SmartTransportation.Patches
 
                 //Mod.log.Info($"newVehicleCount: {newVehicleCount}, stableDuration: {stableDuration}, defaultVehicleInterval: {defaultVehicleInterval}");
 
-                float vehicleInterval = 100f / (stableDuration / (defaultVehicleInterval * newVehicleCount));
-                m_PoliciesUISystem.SetPolicy(selectedEntity, m_VehicleCountPolicy, active: true, vehicleInterval);
+                var modifierDatas = __instance.EntityManager.GetBuffer<RouteModifierData>(m_VehicleCountPolicy, true);
+                var sliderData = __instance.EntityManager.GetComponentData<PolicySliderData>(m_VehicleCountPolicy);
+                int vehicleCount = Math.Max(1, (int)Math.Round(newVehicleCount));
+                float policyAdjustment = SmartTransitSystem.CalculateAdjustmentFromVehicleCount(vehicleCount, defaultVehicleInterval, stableDuration, modifierDatas, sliderData);
+                m_PoliciesUISystem.SetPolicy(selectedEntity, m_VehicleCountPolicy, active: true, policyAdjustment);
             }
             catch (Exception ex)
             {

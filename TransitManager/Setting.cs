@@ -4,6 +4,7 @@ using Game.Modding;
 using Game.Settings;
 using Game.UI;
 using Game.UI.Widgets;
+using SmartTransportation.Systems;
 using System.Collections.Generic;
 using Unity.Entities;
 
@@ -67,6 +68,7 @@ namespace SmartTransportation
             waiting_time_weight = 1f;
             threshold = 10;
             debug = false;
+            use_universal_mod_menu = false;
             updateFreq = UpdateFreqEnum.min45;
             max_vahicles_adj_bus = 0;
             min_vahicles_adj_bus = 25;
@@ -357,6 +359,17 @@ namespace SmartTransportation
         [SettingsUISection(SettingsSection, SettingsGroup)]
         public bool debug { get; set; }
 
+        [SettingsUISection(SettingsSection, SettingsGroup)]
+        [SettingsUISetter(typeof(Setting), nameof(SetUseUniversalModMenu))]
+        public bool use_universal_mod_menu { get; set; } = false;
+
+        public void SetUseUniversalModMenu(bool value)
+        {
+            World.DefaultGameObjectInjectionWorld
+                ?.GetExistingSystemManaged<AllRoutesUISystem>()
+                ?.UpdateUseUniversalModMenu(value);
+        }
+
         [SettingsUISection(SettingsSection, ChirpSettings)]
         public bool disable_chirps { get; set; }
 
@@ -419,6 +432,8 @@ namespace SmartTransportation
 
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.debug)), "Write Transit Information to Log" },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.debug)), "Writes information used to make decision on ticket price and frequency for each route, such as transit occupancy and number of vehicles, to log." },
+                { m_Setting.GetOptionLabelLocaleID(nameof(Setting.use_universal_mod_menu)), "Show button in Universal Mod Menu" },
+                { m_Setting.GetOptionDescLocaleID(nameof(Setting.use_universal_mod_menu)), "Adds a Smart Transportation button to the Universal Mod Menu. Disabled by default." },
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.updateFreq)), "Update Frequency (In-game minutes)" },
                 { m_Setting.GetOptionDescLocaleID(nameof(Setting.updateFreq)), "How frequent Smart Transportation will evaluate each route and decide to update vehicles or ticket prices. Time is in in-game minutes. Note that if you are using the slow feature from the Realistic Trip mods, this time is based on the vanilla game, with that feature you need to divide this time with the slow time factor to get the actual time with that mod." },
                 { m_Setting.GetOptionLabelLocaleID(nameof(Setting.waiting_time_weight)), "Waiting Time Weight" },

@@ -38,6 +38,8 @@ namespace SmartTransportation.Bridge
         private ImageSystem m_ImageSystem;
         private const int disabled_int_id = 999; // Used for disabled routes
         private bool firstUpdate = false;
+        private bool deferRouteNameApplication = false;
+        private bool pendingRouteNameApplication = false;
 
         public static readonly Dictionary<Colossal.Hash128, string> RuleNames = new()
         {
@@ -254,15 +256,23 @@ namespace SmartTransportation.Bridge
             base.OnGameLoaded(serializationContext);
 
             RemoveDuplicateCustomRuleEntities();
-            SyncDefaultRulesFromSettings();
+            deferRouteNameApplication = true;
+            try
+            {
+                SyncDefaultRulesFromSettings();
+            }
+            finally
+            {
+                deferRouteNameApplication = false;
+            }
             ApplyAllCustomRuleColors();
             ApplyAllCustomRuleVehicleModels();
             ApplyAllCustomRuleVehicleColors();
-            ApplyAllCustomRuleRouteNames();
+            pendingRouteNameApplication = true;
 
-            // This system only needs to run on load.
-            firstUpdate = true;
-            Enabled = false;
+            // Route names must be applied after load, when NameSystem can create command buffers.
+            firstUpdate = false;
+            Enabled = true;
         }
 
         private void RemoveDuplicateCustomRuleEntities()
@@ -912,7 +922,7 @@ namespace SmartTransportation.Bridge
                         ApplyRuleColorToRoutes(ruleId, updated.routeColor);
                         ApplyRuleVehicleModelsToRoutes(ruleId);
                         ApplyRuleVehicleColorsToRoutes(ruleId);
-                        ApplyRuleRouteNamesToRoutes(ruleId);
+                        ApplyRuleRouteNamesToRoutesOrDefer(ruleId);
 
                         return;
                     }
@@ -1479,6 +1489,17 @@ namespace SmartTransportation.Bridge
             }
         }
 
+        private void ApplyRuleRouteNamesToRoutesOrDefer(Colossal.Hash128 ruleId)
+        {
+            if (deferRouteNameApplication)
+            {
+                pendingRouteNameApplication = true;
+                return;
+            }
+
+            ApplyRuleRouteNamesToRoutes(ruleId);
+        }
+
         private static bool IsDisabledRule(Colossal.Hash128 ruleId)
         {
             return ruleId == new Colossal.Hash128((uint)disabled_int_id, 0, 0, 0);
@@ -1773,7 +1794,10 @@ namespace SmartTransportation.Bridge
 
         private void ApplyRouteNameToRoute(Entity routeEntity, CustomRule rule, NameSystem nameSystem, int number)
         {
-            var desiredName = $"{rule.routeNamePrefix.ToString()}{number}";
+            var routeNamePrefix = rule.routeNamePrefix.ToString().Trim();
+            var desiredName = string.IsNullOrWhiteSpace(routeNamePrefix)
+                ? number.ToString()
+                : $"{routeNamePrefix} {number}";
             if (string.IsNullOrWhiteSpace(desiredName))
                 return;
 
@@ -1834,25 +1858,40 @@ namespace SmartTransportation.Bridge
             var routeVehicles = EntityManager.GetBuffer<RouteVehicle>(routeEntity, true);
             foreach (var routeVehicle in routeVehicles)
             {
-                ApplyVehicleColorsToObject(routeVehicle.m_Vehicle, colorSet);
+                ApplyVehicleColorsToObject(routeVehicle.m_Vehicle, colorSet, new HashSet<Entity>());
             }
         }
 
-        private void ApplyVehicleColorsToObject(Entity vehicleEntity, ColorSet colorSet)
+        private void ApplyVehicleColorsToObject(Entity vehicleEntity, ColorSet colorSet, HashSet<Entity> visited)
         {
-            if (vehicleEntity == Entity.Null || !EntityManager.Exists(vehicleEntity))
+            if (vehicleEntity == Entity.Null || !EntityManager.Exists(vehicleEntity) || !visited.Add(vehicleEntity))
                 return;
 
             SetCustomMeshColor(vehicleEntity, colorSet);
+            SetRouteColorComponent(vehicleEntity, colorSet.m_Channel0);
 
-            if (!EntityManager.HasBuffer<Game.Objects.SubObject>(vehicleEntity))
+            if (EntityManager.HasBuffer<Game.Objects.SubObject>(vehicleEntity))
+            {
+                var subObjects = EntityManager.GetBuffer<Game.Objects.SubObject>(vehicleEntity, true);
+                foreach (var subObject in subObjects)
+                {
+                    if (subObject.m_SubObject != Entity.Null && EntityManager.Exists(subObject.m_SubObject))
+                    {
+                        ApplyVehicleColorsToObject(subObject.m_SubObject, colorSet, visited);
+                    }
+                }
+            }
+
+            if (!EntityManager.HasBuffer<Game.Vehicles.LayoutElement>(vehicleEntity))
                 return;
 
-            var subObjects = EntityManager.GetBuffer<Game.Objects.SubObject>(vehicleEntity, true);
-            foreach (var subObject in subObjects)
+            var layoutElements = EntityManager.GetBuffer<Game.Vehicles.LayoutElement>(vehicleEntity, true);
+            foreach (var layoutElement in layoutElements)
             {
-                if (subObject.m_SubObject != Entity.Null && EntityManager.Exists(subObject.m_SubObject))
-                    SetCustomMeshColor(subObject.m_SubObject, colorSet);
+                if (layoutElement.m_Vehicle != Entity.Null && EntityManager.Exists(layoutElement.m_Vehicle))
+                {
+                    ApplyVehicleColorsToObject(layoutElement.m_Vehicle, colorSet, visited);
+                }
             }
         }
 
@@ -1867,6 +1906,16 @@ namespace SmartTransportation.Bridge
             {
                 m_ColorSet = colorSet
             });
+        }
+
+        private void SetRouteColorComponent(Entity entity, UnityColor color)
+        {
+            var routeColorComponent = new Game.Routes.Color((UnityColor32)NormalizeColor(color));
+
+            if (EntityManager.HasComponent<Game.Routes.Color>(entity))
+                EntityManager.SetComponentData(entity, routeColorComponent);
+            else
+                EntityManager.AddComponentData(entity, routeColorComponent);
         }
 
         private void ApplyRouteColor(Entity routeEntity, UnityColor routeColor)
@@ -2135,6 +2184,12 @@ namespace SmartTransportation.Bridge
             if (firstUpdate) return;
 
             SyncDefaultRulesFromSettings();
+
+            if (pendingRouteNameApplication)
+            {
+                pendingRouteNameApplication = false;
+                ApplyAllCustomRuleRouteNames();
+            }
 
             //Entity routeEntity = GetRouteEntityFromId(1, TransportType.Bus);
             //if (routeEntity == Entity.Null)

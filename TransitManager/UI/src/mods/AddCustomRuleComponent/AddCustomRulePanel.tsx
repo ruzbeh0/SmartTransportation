@@ -55,6 +55,11 @@ const getInitialTransportType = (rule?: CustomRule | null) => {
 const entityKey = (entity: Entity | null | undefined) =>
     entity ? `${entity.index}:${entity.version}` : "";
 
+const formatRouteNamePreview = (prefix: string, number: number) => {
+    const trimmedPrefix = prefix.trim();
+    return trimmedPrefix ? `${trimmedPrefix} ${number}` : `${number}`;
+};
+
 interface AddCustomRulePanelProps {
     onRuleSaved: () => void;
     onClose: () => void;
@@ -491,7 +496,7 @@ const AddCustomRulePanel: React.FC<AddCustomRulePanelProps & DraggablePanelProps
                     {useRouteNaming && (
                         <div className={styles.namingSection}>
                             <div className={styles.warningBox}>
-                                Saving this option will rename matching routes that do not follow this prefix + number pattern.
+                                Saving this option will rename matching routes that do not follow this prefix + space + number pattern.
                             </div>
                             <div className={styles.labelStyle}>
                                 Optional prefix
@@ -509,11 +514,11 @@ const AddCustomRulePanel: React.FC<AddCustomRulePanelProps & DraggablePanelProps
                             />
                             {sequentialRouteNaming && (
                                 <div className={styles.warningBox}>
-                                    Matching routes will be numbered from 1 in route-number order. For example, existing routes 5, 6, and 10 become {(routeNamePrefix.trim() || "")}1, {(routeNamePrefix.trim() || "")}2, and {(routeNamePrefix.trim() || "")}3.
+                                    Matching routes will be numbered from 1 in route-number order. For example, existing routes 5, 6, and 10 become {formatRouteNamePreview(routeNamePrefix, 1)}, {formatRouteNamePreview(routeNamePrefix, 2)}, and {formatRouteNamePreview(routeNamePrefix, 3)}.
                                 </div>
                             )}
                             <div className={styles.namingPreview}>
-                                Preview: {(routeNamePrefix.trim() || "")}1
+                                Preview: {formatRouteNamePreview(routeNamePrefix, 1)}
                             </div>
                         </div>
                     )}

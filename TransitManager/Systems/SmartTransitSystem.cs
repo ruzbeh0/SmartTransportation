@@ -193,6 +193,28 @@ namespace SmartTransportation
             return TransportLineSystem.CalculateVehicleCount(interval, duration);
         }
 
+        public static float CalculateAdjustmentFromVehicleCount(int vehicleCount, float originalInterval, float duration, DynamicBuffer<RouteModifierData> modifierDatas, PolicySliderData sliderData)
+        {
+            float vehicleInterval = TransportLineSystem.CalculateVehicleInterval(duration, vehicleCount);
+            RouteModifier modifier = new RouteModifier();
+
+            foreach (RouteModifierData modifierData in modifierDatas)
+            {
+                if (modifierData.m_Type == RouteModifierType.VehicleInterval)
+                {
+                    if (modifierData.m_Mode == ModifierValueMode.Absolute)
+                        modifier.m_Delta.x = vehicleInterval - originalInterval;
+                    else
+                        modifier.m_Delta.y = (-originalInterval + vehicleInterval) / originalInterval;
+
+                    float deltaFromModifier = RouteModifierInitializeSystem.RouteModifierRefreshData.GetDeltaFromModifier(modifier, modifierData);
+                    return RouteModifierInitializeSystem.RouteModifierRefreshData.GetPolicyAdjustmentFromModifierDelta(modifierData, deltaFromModifier, sliderData);
+                }
+            }
+
+            return -1f;
+        }
+
         protected override void OnUpdate()
         {
             // 1. Initialize Route Manager System
@@ -491,8 +513,9 @@ namespace SmartTransportation
             if (ticketPrice == 0 && config.StandardTicketPrice > 0) ticketPrice = config.StandardTicketPrice;
             int oldTicketPrice = ticketPrice;
 
-            int setVehicles = TransportLineSystem.CalculateVehicleCount(vehicleInterval, stableDuration);
-            int oldVehicles = setVehicles;
+            int policyVehicles = TransportLineSystem.CalculateVehicleCount(vehicleInterval, stableDuration);
+            int oldVehicles = data.CurrentVehicles > 0 ? data.CurrentVehicles : policyVehicles;
+            int setVehicles = policyVehicles;
             int maxChangeAllowed = 0;
 
             float targetRatio = config.OccupancyTarget / 100f;
@@ -613,10 +636,17 @@ namespace SmartTransportation
                 // [Step D] Clamp to Min/Max
                 setVehicles = math.clamp(setVehicles, minVehicles, maxVehicles);
 
-                // Prevent reducing vehicles if too many are empty
-                if (setVehicles < oldVehicles && data.EmptyVehicles / (float)oldVehicles > 0.3f)
+                // Do not reduce service while there is at least one vehicle-load waiting.
+                bool tryingToReduceVehicles = setVehicles < oldVehicles;
+                bool significantWaitingBacklog = data.PassengerCapacityPerVehicle > 0 &&
+                                                 data.TotalWaiting >= data.PassengerCapacityPerVehicle;
+                if (tryingToReduceVehicles && significantWaitingBacklog)
                 {
-                    setVehicles = oldVehicles;
+                    if (Mod.m_Setting.debug)
+                    {
+                        Mod.log.Info($"   -> Action: Reduction blocked. Waiting={data.TotalWaiting} >= vehicle capacity {data.PassengerCapacityPerVehicle} (Empty vehicles: {data.EmptyVehicles}).");
+                    }
+                    setVehicles = math.clamp(oldVehicles, minVehicles, maxVehicles);
                 }
             }
             else if (Mod.m_Setting.debug)
@@ -625,22 +655,24 @@ namespace SmartTransportation
             }
 
             // Apply Changes if needed
-            if (oldVehicles != setVehicles || oldTicketPrice != ticketPrice)
+            if ((config.AdjustVehicles && policyVehicles != setVehicles) || oldTicketPrice != ticketPrice)
             {
                 int isFree = ticketPrice > 0 ? 1 : 0;
                 m_PoliciesUISystem.SetPolicy(routeEntity, m_TicketPricePolicy, isFree != 0, (float)ticketPrice);
 
                 if (config.AdjustVehicles && setVehicles > 0)
                 {
-                    float newInterval = 100f / (stableDuration / (defaultVehicleInterval * setVehicles));
-                    m_PoliciesUISystem.SetPolicy(routeEntity, m_VehicleCountPolicy, true, newInterval);
+                    DynamicBuffer<RouteModifierData> modifierDatas = m_RouteModifierDatas[m_VehicleCountPolicy];
+                    PolicySliderData sliderData = m_PolicySliderDatas[m_VehicleCountPolicy];
+                    float policyAdjustment = CalculateAdjustmentFromVehicleCount(setVehicles, defaultVehicleInterval, stableDuration, modifierDatas, sliderData);
+                    m_PoliciesUISystem.SetPolicy(routeEntity, m_VehicleCountPolicy, true, policyAdjustment);
                 }
 
                 if (Mod.m_Setting.debug)
                 {
                     Mod.log.Info($"Route:{routeNumber.m_Number} ({transportLineData.m_TransportType}) | " +
                                  $"Ratio: {weightedCapacityRatio:P1} (Target: {targetRatio:P0}) | " +
-                                 $"Veh: {(config.AdjustVehicles ? $"{oldVehicles}->{setVehicles} (Limit +/-{maxChangeAllowed})" : "disabled")} | " +
+                                 $"Veh: {(config.AdjustVehicles ? $"{oldVehicles}->{setVehicles} (Policy: {policyVehicles}, Limit +/-{maxChangeAllowed})" : "disabled")} | " +
                                  $"Price: {oldTicketPrice}->{ticketPrice}");
                 }
             }

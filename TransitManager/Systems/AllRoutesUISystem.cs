@@ -14,8 +14,14 @@ namespace SmartTransportation.Systems
         private ILog _log;
 
         private RawValueBinding _routeInfosBinding;
+        private ValueBinding<bool> _useUniversalModMenuBinding;
         private RouteInfos _routeInfos = new();
         private DisabledTransportTypes _disabledTransportTypes = new();
+
+        public void UpdateUseUniversalModMenu(bool value)
+        {
+            _useUniversalModMenuBinding?.Update(value);
+        }
 
         protected override void OnCreate()
         {
@@ -29,6 +35,12 @@ namespace SmartTransportation.Systems
                 Mod.modName,
                 "routeInfos",
                 WriteRouteInfos
+            ));
+
+            AddBinding(_useUniversalModMenuBinding = new ValueBinding<bool>(
+                Mod.modName,
+                "useUniversalModMenu",
+                Mod.m_Setting?.use_universal_mod_menu ?? false
             ));
 
             // Disabled transport types binding using RawValueBinding
