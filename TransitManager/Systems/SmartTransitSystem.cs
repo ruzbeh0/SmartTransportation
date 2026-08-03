@@ -83,6 +83,19 @@ namespace SmartTransportation
         private float BusyStopExitPct => Mod.m_Setting.busy_stop_exit_pct / 100f;
         private int maxAlertsPerCycle = 1;
         private bool ChirpsEnabled => !Mod.m_Setting.disable_chirps;
+        private static bool DebugLoggingEnabled => Mod.m_Setting?.debug == true;
+
+        private static void DebugLog(string message)
+        {
+            try
+            {
+                Mod.log?.Info(message);
+            }
+            catch
+            {
+                // Debug logging should never interrupt simulation.
+            }
+        }
 
 
         protected override void OnCreate()
@@ -249,9 +262,9 @@ namespace SmartTransportation
             // 3. Query all Transport Line Entities
             using var transports = _query.ToEntityArray(Allocator.Temp);
 
-            if (Mod.m_Setting.debug)
+            if (DebugLoggingEnabled)
             {
-                Mod.log.Info($"[SmartTransit] OnUpdate Start. Total Routes Found: {transports.Length}");
+                DebugLog($"[SmartTransit] OnUpdate Start. Total Routes Found: {transports.Length}");
             }
 
             int alertsPostedThisCycle = 0;
@@ -308,7 +321,10 @@ namespace SmartTransportation
                 }
                 else
                 {
-                    if (Mod.m_Setting.debug) Mod.log.Info($"[DEBUG] Capacity Calc Failed. Maybe cargo vehicle?");
+                    if (DebugLoggingEnabled)
+                    {
+                        DebugLog($"[DEBUG] Capacity Calc Failed. Maybe cargo vehicle?");
+                    }
                 }
             }
             if (data.PassengerCapacityPerVehicle == 0) data.PassengerCapacityPerVehicle = 0;
@@ -384,13 +400,17 @@ namespace SmartTransportation
             if (transportLineData.m_TransportType == TransportType.Ferry && Mod.m_Setting.disable_Ferry) return;
 
 
-            if (Mod.m_Setting.debug)
-                Mod.log.Info($"--- Processing Route #{routeNumber.m_Number} ({transportLineData.m_TransportType}) ---");
+            if (DebugLoggingEnabled)
+            {
+                DebugLog($"--- Processing Route #{routeNumber.m_Number} ({transportLineData.m_TransportType}) ---");
+            }
 
             if (!transportLineData.m_PassengerTransport)
             {
-                if (Mod.m_Setting.debug)
-                    Mod.log.Info(routeEntity + $"   -> Skipped: Not a passenger transport line. It's cargo.");
+                if (DebugLoggingEnabled)
+                {
+                    DebugLog(routeEntity + $"   -> Skipped: Not a passenger transport line. It's cargo.");
+                }
                 return;
             }
 
@@ -398,7 +418,10 @@ namespace SmartTransportation
 
             if (hasCustomRule && routeRule.customRule == default)
             {
-                if (Mod.m_Setting.debug) Mod.log.Info($"   -> Skipped: Invalid Custom Rule.");
+                if (DebugLoggingEnabled)
+                {
+                    DebugLog($"   -> Skipped: Invalid Custom Rule.");
+                }
                 return;
             }
 
@@ -415,20 +438,26 @@ namespace SmartTransportation
 
             if (config.OccupancyTarget == 0)
             {
-                if (Mod.m_Setting.debug) Mod.log.Info($"   -> Skipped: Occupancy Target is 0 (Disabled in settings).");
+                if (DebugLoggingEnabled)
+                {
+                    DebugLog($"   -> Skipped: Occupancy Target is 0 (Disabled in settings).");
+                }
                 return;
             }
 
             RouteData data = GetRouteData(routeEntity, transportLineData);
 
-            if (Mod.m_Setting.debug)
+            if (DebugLoggingEnabled)
             {
-                Mod.log.Info($"   -> Data: Vehicles={data.CurrentVehicles} (Empty: {data.EmptyVehicles}), CapPerVehicle={data.PassengerCapacityPerVehicle}, Passengers={data.TotalPassengers}, Waiting={data.TotalWaiting}");
+                DebugLog($"   -> Data: Vehicles={data.CurrentVehicles} (Empty: {data.EmptyVehicles}), CapPerVehicle={data.PassengerCapacityPerVehicle}, Passengers={data.TotalPassengers}, Waiting={data.TotalWaiting}");
             }
 
             if (data.CurrentVehicles == 0)
             {
-                if (Mod.m_Setting.debug) Mod.log.Info($"   -> Skipped: No vehicles active on route.");
+                if (DebugLoggingEnabled)
+                {
+                    DebugLog($"   -> Skipped: No vehicles active on route.");
+                }
                 return;
             }
 
@@ -451,9 +480,9 @@ namespace SmartTransportation
                 weightedCapacityRatio = (data.TotalPassengers + (data.TotalWaiting * Mod.m_Setting.waiting_time_weight)) / (float)totalCapacity;
             }
 
-            if (Mod.m_Setting.debug)
+            if (DebugLoggingEnabled)
             {
-                Mod.log.Info($"   -> Calc: TotalCap={totalCapacity}, WeightedRatio={weightedCapacityRatio:F2}, StableDuration={stableDuration}");
+                DebugLog($"   -> Calc: TotalCap={totalCapacity}, WeightedRatio={weightedCapacityRatio:F2}, StableDuration={stableDuration}");
             }
 
             // Alert System
@@ -484,10 +513,10 @@ namespace SmartTransportation
                                 ("waiting", data.MaxStopWaiting.ToString()));
 
                             CustomChirpsBridge.PostChirp(msg, DepartmentAccountBridge.Transportation, data.BusiestStop, T2WStrings.T("chirp.mod_name"));
-                            if (Mod.m_Setting.debug)
+                            if (DebugLoggingEnabled)
                             {
-                                Mod.log.Info($"   -> ALERT: Chirp posted for busy stop.");
-                                Mod.log.Info($"      line_label: {lineLabel}, waiting: {data.MaxStopWaiting}");
+                                DebugLog($"   -> ALERT: Chirp posted for busy stop.");
+                                DebugLog($"      line_label: {lineLabel}, waiting: {data.MaxStopWaiting}");
                             }
                             alertsPostedThisCycle++;
                         }
@@ -541,8 +570,10 @@ namespace SmartTransportation
                     if (newPrice != ticketPrice)
                     {
                         ticketPrice = newPrice;
-                        if (Mod.m_Setting.debug)
-                            Mod.log.Info($"   -> Action: Demand VERY HIGH. Increasing price aggressively (+2). New: {ticketPrice}");
+                        if (DebugLoggingEnabled)
+                        {
+                            DebugLog($"   -> Action: Demand VERY HIGH. Increasing price aggressively (+2). New: {ticketPrice}");
+                        }
                     }
                 }
             }
@@ -552,8 +583,10 @@ namespace SmartTransportation
                 if (ticketPrice < maxPrice)
                 {
                     ticketPrice++;
-                    if (Mod.m_Setting.debug)
-                        Mod.log.Info($"   -> Action: Demand HIGH. Increasing price (+1). New: {ticketPrice}");
+                    if (DebugLoggingEnabled)
+                    {
+                        DebugLog($"   -> Action: Demand HIGH. Increasing price (+1). New: {ticketPrice}");
+                    }
                 }
             }
             // 3. Demand is VERY LOW (Below target by more than 2x margin)
@@ -567,8 +600,10 @@ namespace SmartTransportation
                     if (newPrice != ticketPrice)
                     {
                         ticketPrice = newPrice;
-                        if (Mod.m_Setting.debug)
-                            Mod.log.Info($"   -> Action: Demand VERY LOW. Decreasing price aggressively (-2). New: {ticketPrice}");
+                        if (DebugLoggingEnabled)
+                        {
+                            DebugLog($"   -> Action: Demand VERY LOW. Decreasing price aggressively (-2). New: {ticketPrice}");
+                        }
                     }
                 }
             }
@@ -578,8 +613,10 @@ namespace SmartTransportation
                 if (ticketPrice > minPrice)
                 {
                     ticketPrice--;
-                    if (Mod.m_Setting.debug)
-                        Mod.log.Info($"   -> Action: Demand LOW. Decreasing price (-1). New: {ticketPrice}");
+                    if (DebugLoggingEnabled)
+                    {
+                        DebugLog($"   -> Action: Demand LOW. Decreasing price (-1). New: {ticketPrice}");
+                    }
                 }
             }
 
@@ -602,10 +639,10 @@ namespace SmartTransportation
                     float effectiveTargetRatio = targetRatio;
                     if (targetRatio == 0)
                     {
-                        if (Mod.m_Setting.debug)
+                        if (DebugLoggingEnabled)
                         {
-                            Mod.log.Info($"   -> Warning:  Divide by zero may occur due to target ratio being 0.");
-                            Mod.log.Info($"  -> Calculate effective target ratio as 1% to avoid errors.");
+                            DebugLog($"   -> Warning:  Divide by zero may occur due to target ratio being 0.");
+                            DebugLog($"  -> Calculate effective target ratio as 1% to avoid errors.");
                         }
                         effectiveTargetRatio = math.max(targetRatio, 0.01f);
                     }
@@ -636,22 +673,30 @@ namespace SmartTransportation
                 // [Step D] Clamp to Min/Max
                 setVehicles = math.clamp(setVehicles, minVehicles, maxVehicles);
 
-                // Do not reduce service while there is at least one vehicle-load waiting.
+                // Backlog should not pin empty vehicles on a route forever.
                 bool tryingToReduceVehicles = setVehicles < oldVehicles;
                 bool significantWaitingBacklog = data.PassengerCapacityPerVehicle > 0 &&
                                                  data.TotalWaiting >= data.PassengerCapacityPerVehicle;
                 if (tryingToReduceVehicles && significantWaitingBacklog)
                 {
-                    if (Mod.m_Setting.debug)
+                    int lowestFleetWithoutRemovingOccupiedVehicles = oldVehicles - Math.Max(data.EmptyVehicles, 0);
+                    if (setVehicles < lowestFleetWithoutRemovingOccupiedVehicles)
                     {
-                        Mod.log.Info($"   -> Action: Reduction blocked. Waiting={data.TotalWaiting} >= vehicle capacity {data.PassengerCapacityPerVehicle} (Empty vehicles: {data.EmptyVehicles}).");
+                        int limitedVehicles = math.clamp(lowestFleetWithoutRemovingOccupiedVehicles, minVehicles, maxVehicles);
+                        if (DebugLoggingEnabled)
+                        {
+                            DebugLog($"   -> Action: Reduction limited by waiting backlog. Waiting={data.TotalWaiting}, EmptyVehicles={data.EmptyVehicles}, Proposed={setVehicles}, Limited={limitedVehicles}.");
+                        }
+                        setVehicles = limitedVehicles;
                     }
-                    setVehicles = math.clamp(oldVehicles, minVehicles, maxVehicles);
                 }
             }
-            else if (Mod.m_Setting.debug)
+            else
             {
-                Mod.log.Info($"   -> Vehicle adjustment disabled by rule.");
+                if (DebugLoggingEnabled)
+                {
+                    DebugLog($"   -> Vehicle adjustment disabled by rule.");
+                }
             }
 
             // Apply Changes if needed
@@ -668,12 +713,12 @@ namespace SmartTransportation
                     m_PoliciesUISystem.SetPolicy(routeEntity, m_VehicleCountPolicy, true, policyAdjustment);
                 }
 
-                if (Mod.m_Setting.debug)
+                if (DebugLoggingEnabled)
                 {
-                    Mod.log.Info($"Route:{routeNumber.m_Number} ({transportLineData.m_TransportType}) | " +
-                                 $"Ratio: {weightedCapacityRatio:P1} (Target: {targetRatio:P0}) | " +
-                                 $"Veh: {(config.AdjustVehicles ? $"{oldVehicles}->{setVehicles} (Policy: {policyVehicles}, Limit +/-{maxChangeAllowed})" : "disabled")} | " +
-                                 $"Price: {oldTicketPrice}->{ticketPrice}");
+                    DebugLog($"Route:{routeNumber.m_Number} ({transportLineData.m_TransportType}) | " +
+                             $"Ratio: {weightedCapacityRatio:P1} (Target: {targetRatio:P0}) | " +
+                             $"Veh: {(config.AdjustVehicles ? $"{oldVehicles}->{setVehicles} (Policy: {policyVehicles}, Limit +/-{maxChangeAllowed})" : "disabled")} | " +
+                             $"Price: {oldTicketPrice}->{ticketPrice}");
                 }
             }
         }
