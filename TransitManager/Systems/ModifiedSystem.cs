@@ -4,6 +4,7 @@ using Game.Areas;
 using Game.Buildings;
 using Game.City;
 using Game.Common;
+using Game.Pathfind;
 using Game.Policies;
 using Game.Prefabs;
 using Game.PSI;
@@ -52,6 +53,12 @@ namespace SmartTransportation.Systems
         [ReadOnly]
         public ComponentLookup<Game.Buildings.ServiceUpgrade> m_ServiceUpgradeData;
 
+        [ReadOnly]
+        public BufferLookup<CoverageElement> m_CoverageElements;
+
+        [ReadOnly]
+        public Entity m_TicketPricePolicy;
+
         public ComponentLookup<District> m_DistrictData;
 
         public ComponentLookup<Building> m_BuildingData;
@@ -99,6 +106,7 @@ namespace SmartTransportation.Systems
                             {
                                 if ((modify.m_Flags & PolicyFlags.Active) == 0)
                                 {
+                                    CheckFreeBusTicketEventTrigger(value);
                                     if (!m_DistrictModifierRefreshData.m_PolicySliderData.HasComponent(value.m_Policy))
                                     {
                                         bufferData.RemoveAt(num);
@@ -164,7 +172,26 @@ namespace SmartTransportation.Systems
                 if (m_ServiceUpgradeData.HasComponent(modify.m_Entity) && m_OwnerData.TryGetComponent(modify.m_Entity, out var componentData3))
                 {
                     m_CommandBuffer.AddComponent<Updated>(componentData3.m_Owner);
+                    if (m_CoverageElements.HasBuffer(modify.m_Entity))
+                    {
+                        m_CommandBuffer.AddComponent<Updated>(modify.m_Entity);
+                    }
                 }
+            }
+        }
+
+        private void CheckFreeBusTicketEventTrigger(Policy policy)
+        {
+            if (m_TicketPricePolicy == policy.m_Policy)
+            {
+                m_TriggerBuffer.Enqueue(new TriggerAction
+                {
+                    m_TriggerType = TriggerType.FreePublicTransport,
+                    m_Value = 0f,
+                    m_TriggerPrefab = policy.m_Policy,
+                    m_SecondaryTarget = Entity.Null,
+                    m_PrimaryTarget = Entity.Null
+                });
             }
         }
 
@@ -273,6 +300,9 @@ namespace SmartTransportation.Systems
         [ReadOnly]
         public ComponentLookup<Game.Buildings.ServiceUpgrade> __Game_Buildings_ServiceUpgrade_RO_ComponentLookup;
 
+        [ReadOnly]
+        public BufferLookup<CoverageElement> __Game_Pathfind_CoverageElement_RO_BufferLookup;
+
         public ComponentLookup<District> __Game_Areas_District_RW_ComponentLookup;
 
         public ComponentLookup<Building> __Game_Buildings_Building_RW_ComponentLookup;
@@ -299,6 +329,7 @@ namespace SmartTransportation.Systems
             __Game_Policies_Modify_RO_ComponentTypeHandle = state.GetComponentTypeHandle<Modify>(isReadOnly: true);
             __Game_Common_Owner_RO_ComponentLookup = state.GetComponentLookup<Owner>(isReadOnly: true);
             __Game_Buildings_ServiceUpgrade_RO_ComponentLookup = state.GetComponentLookup<Game.Buildings.ServiceUpgrade>(isReadOnly: true);
+            __Game_Pathfind_CoverageElement_RO_BufferLookup = state.GetBufferLookup<CoverageElement>(isReadOnly: true);
             __Game_Areas_District_RW_ComponentLookup = state.GetComponentLookup<District>();
             __Game_Buildings_Building_RW_ComponentLookup = state.GetComponentLookup<Building>();
             __Game_Buildings_Extension_RW_ComponentLookup = state.GetComponentLookup<Extension>();
@@ -330,6 +361,8 @@ namespace SmartTransportation.Systems
 
     private CityModifierUpdateSystem.CityModifierRefreshData m_CityModifierRefreshData;
 
+    private Entity m_TicketPricePolicy;
+
     private TypeHandle __TypeHandle;
 
     [Preserve]
@@ -341,6 +374,10 @@ namespace SmartTransportation.Systems
         m_BuildingModifierRefreshData = new BuildingModifierInitializeSystem.BuildingModifierRefreshData(this);
         m_RouteModifierRefreshData = new RouteModifierInitializeSystem.RouteModifierRefreshData(this);
         m_CityModifierRefreshData = new CityModifierUpdateSystem.CityModifierRefreshData(this);
+        PrefabSystem prefabSystem = World.GetOrCreateSystemManaged<PrefabSystem>();
+        EntityQuery uiTransportConfigurationQuery = GetEntityQuery(ComponentType.ReadOnly<UITransportConfigurationData>());
+        UITransportConfigurationPrefab uiTransportConfigurationPrefab = prefabSystem.GetSingletonPrefab<UITransportConfigurationPrefab>(uiTransportConfigurationQuery);
+        m_TicketPricePolicy = prefabSystem.GetEntity(uiTransportConfigurationPrefab.m_TicketPricePolicy);
         this.m_EventQuery = this.GetEntityQuery(ComponentType.ReadOnly<Event>(), ComponentType.ReadOnly<Modify>());
         m_EffectProviderQuery = GetEntityQuery(ComponentType.ReadOnly<CityEffectProvider>(), ComponentType.Exclude<Deleted>(), ComponentType.Exclude<Destroyed>(), ComponentType.Exclude<Temp>());
         m_ModificationBarrier = World.GetOrCreateSystemManaged<ModificationBarrier4>();
@@ -369,6 +406,7 @@ namespace SmartTransportation.Systems
             m_ModifyType = InternalCompilerInterface.GetComponentTypeHandle<Modify>(ref this.__TypeHandle.__Game_Policies_Modify_RO_ComponentTypeHandle, ref this.CheckedStateRef),
             m_OwnerData = InternalCompilerInterface.GetComponentLookup<Owner>(ref this.__TypeHandle.__Game_Common_Owner_RO_ComponentLookup, ref this.CheckedStateRef),
             m_ServiceUpgradeData = InternalCompilerInterface.GetComponentLookup<Game.Buildings.ServiceUpgrade>(ref this.__TypeHandle.__Game_Buildings_ServiceUpgrade_RO_ComponentLookup, ref this.CheckedStateRef),
+            m_CoverageElements = InternalCompilerInterface.GetBufferLookup<CoverageElement>(ref this.__TypeHandle.__Game_Pathfind_CoverageElement_RO_BufferLookup, ref this.CheckedStateRef),
             m_TriggerBuffer = nativeQueue.AsParallelWriter(),
             m_DistrictData = InternalCompilerInterface.GetComponentLookup<District>(ref this.__TypeHandle.__Game_Areas_District_RW_ComponentLookup, ref this.CheckedStateRef),
             m_BuildingData = InternalCompilerInterface.GetComponentLookup<Building>(ref this.__TypeHandle.__Game_Buildings_Building_RW_ComponentLookup, ref this.CheckedStateRef),
@@ -381,7 +419,8 @@ namespace SmartTransportation.Systems
             m_CityModifiers = InternalCompilerInterface.GetBufferLookup<CityModifier>(ref this.__TypeHandle.__Game_City_CityModifier_RW_BufferLookup, ref this.CheckedStateRef),
             m_Policies = InternalCompilerInterface.GetBufferLookup<Policy>(ref this.__TypeHandle.__Game_Policies_Policy_RW_BufferLookup, ref this.CheckedStateRef),
             m_PolicyEventInfos = m_PolicyEventInfos.AsParallelWriter(),
-            m_CommandBuffer = m_ModificationBarrier.CreateCommandBuffer()
+            m_CommandBuffer = m_ModificationBarrier.CreateCommandBuffer(),
+            m_TicketPricePolicy = m_TicketPricePolicy
         };
         JobHandle jobHandle = jobData.Schedule(m_EventQuery, JobHandle.CombineDependencies(Dependency, outJobHandle));
         effectProviderChunks.Dispose(jobHandle);

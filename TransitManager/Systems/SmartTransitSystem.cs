@@ -672,24 +672,6 @@ namespace SmartTransportation
 
                 // [Step D] Clamp to Min/Max
                 setVehicles = math.clamp(setVehicles, minVehicles, maxVehicles);
-
-                // Backlog should not pin empty vehicles on a route forever.
-                bool tryingToReduceVehicles = setVehicles < oldVehicles;
-                bool significantWaitingBacklog = data.PassengerCapacityPerVehicle > 0 &&
-                                                 data.TotalWaiting >= data.PassengerCapacityPerVehicle;
-                if (tryingToReduceVehicles && significantWaitingBacklog)
-                {
-                    int lowestFleetWithoutRemovingOccupiedVehicles = oldVehicles - Math.Max(data.EmptyVehicles, 0);
-                    if (setVehicles < lowestFleetWithoutRemovingOccupiedVehicles)
-                    {
-                        int limitedVehicles = math.clamp(lowestFleetWithoutRemovingOccupiedVehicles, minVehicles, maxVehicles);
-                        if (DebugLoggingEnabled)
-                        {
-                            DebugLog($"   -> Action: Reduction limited by waiting backlog. Waiting={data.TotalWaiting}, EmptyVehicles={data.EmptyVehicles}, Proposed={setVehicles}, Limited={limitedVehicles}.");
-                        }
-                        setVehicles = limitedVehicles;
-                    }
-                }
             }
             else
             {
